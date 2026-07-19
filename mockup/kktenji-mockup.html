@@ -1,0 +1,741 @@
+<title>KKTenji — UIモックアップ</title>
+<style>
+:root{
+  --base:#F3F3F3; --layer:#FAFAFA; --panel:#F6F7F8;
+  --card:rgba(255,255,255,.72); --card-brd:rgba(0,0,0,.07);
+  --text:rgba(0,0,0,.9); --text2:rgba(0,0,0,.58); --text3:rgba(0,0,0,.38);
+  --accent:#005FB8; --accent-soft:rgba(0,95,184,.12);
+  --canvas-bg:radial-gradient(1200px 800px at 42% 38%, #F2F5F6 0%, #E9EDEF 100%);
+  --dot:#CBD4DA;
+  --n0-bg:#1D5B79; --n0-fg:#FFFFFF;
+  --n1-bg:rgba(255,255,255,.78); --n1-fg:#144257; --n1-bar:#1D5B79;
+  --n2-bg:rgba(255,255,255,.92); --n2-brd:#C9D6DD; --n2-dot:#2B7CA3;
+  --tree-edge:#A5BCC8;
+  --lk-support:#1F9E6E; --lk-echo:#5B6AD0; --lk-contrast:#C4761B; --lk-cause:#C4384A;
+  --edge-casing:rgba(255,255,255,.85);
+  --smoke:rgba(20,30,36,.32);
+  --shadow:0 2px 4px rgba(0,0,0,.05), 0 10px 30px rgba(0,0,0,.08);
+  --close-hover:#C42B1C;
+  --hair:rgba(0,0,0,.08);
+}
+@media (prefers-color-scheme: dark){ :root{
+  --base:#202020; --layer:#262626; --panel:#242424;
+  --card:rgba(255,255,255,.055); --card-brd:rgba(255,255,255,.09);
+  --text:#FFFFFF; --text2:rgba(255,255,255,.72); --text3:rgba(255,255,255,.42);
+  --accent:#60CDFF; --accent-soft:rgba(96,205,255,.14);
+  --canvas-bg:radial-gradient(1200px 800px at 42% 38%, #1E2529 0%, #171B1E 100%);
+  --dot:#3A4247;
+  --n0-bg:#1D5B79; --n0-fg:#F2F8FB;
+  --n1-bg:rgba(23,50,63,.85); --n1-fg:#BFE0EF; --n1-bar:#5AA9CB;
+  --n2-bg:rgba(15,32,41,.9); --n2-brd:#2E4F60; --n2-dot:#5AA9CB;
+  --tree-edge:#3E5866;
+  --lk-support:#4CC38A; --lk-echo:#7E8CE0; --lk-contrast:#F5B451; --lk-cause:#F06E77;
+  --edge-casing:rgba(0,0,0,.55);
+  --smoke:rgba(0,0,0,.45);
+  --shadow:0 2px 4px rgba(0,0,0,.3), 0 12px 34px rgba(0,0,0,.4);
+  --hair:rgba(255,255,255,.09);
+}}
+:root[data-theme="light"]{
+  --base:#F3F3F3; --layer:#FAFAFA; --panel:#F6F7F8;
+  --card:rgba(255,255,255,.72); --card-brd:rgba(0,0,0,.07);
+  --text:rgba(0,0,0,.9); --text2:rgba(0,0,0,.58); --text3:rgba(0,0,0,.38);
+  --accent:#005FB8; --accent-soft:rgba(0,95,184,.12);
+  --canvas-bg:radial-gradient(1200px 800px at 42% 38%, #F2F5F6 0%, #E9EDEF 100%);
+  --dot:#CBD4DA;
+  --n0-bg:#1D5B79; --n0-fg:#FFFFFF;
+  --n1-bg:rgba(255,255,255,.78); --n1-fg:#144257; --n1-bar:#1D5B79;
+  --n2-bg:rgba(255,255,255,.92); --n2-brd:#C9D6DD; --n2-dot:#2B7CA3;
+  --tree-edge:#A5BCC8;
+  --lk-support:#1F9E6E; --lk-echo:#5B6AD0; --lk-contrast:#C4761B; --lk-cause:#C4384A;
+  --edge-casing:rgba(255,255,255,.85);
+  --smoke:rgba(20,30,36,.32);
+  --shadow:0 2px 4px rgba(0,0,0,.05), 0 10px 30px rgba(0,0,0,.08);
+  --hair:rgba(0,0,0,.08);
+}
+:root[data-theme="dark"]{
+  --base:#202020; --layer:#262626; --panel:#242424;
+  --card:rgba(255,255,255,.055); --card-brd:rgba(255,255,255,.09);
+  --text:#FFFFFF; --text2:rgba(255,255,255,.72); --text3:rgba(255,255,255,.42);
+  --accent:#60CDFF; --accent-soft:rgba(96,205,255,.14);
+  --canvas-bg:radial-gradient(1200px 800px at 42% 38%, #1E2529 0%, #171B1E 100%);
+  --dot:#3A4247;
+  --n0-bg:#1D5B79; --n0-fg:#F2F8FB;
+  --n1-bg:rgba(23,50,63,.85); --n1-fg:#BFE0EF; --n1-bar:#5AA9CB;
+  --n2-bg:rgba(15,32,41,.9); --n2-brd:#2E4F60; --n2-dot:#5AA9CB;
+  --tree-edge:#3E5866;
+  --lk-support:#4CC38A; --lk-echo:#7E8CE0; --lk-contrast:#F5B451; --lk-cause:#F06E77;
+  --edge-casing:rgba(0,0,0,.55);
+  --smoke:rgba(0,0,0,.45);
+  --shadow:0 2px 4px rgba(0,0,0,.3), 0 12px 34px rgba(0,0,0,.4);
+  --hair:rgba(255,255,255,.09);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--base);color:var(--text);
+  font-family:"Segoe UI Variable Text","Segoe UI","Yu Gothic UI",Meiryo,"Noto Sans JP",system-ui,sans-serif;
+  font-size:14px;line-height:1.5;overflow:hidden}
+button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer;font-size:13px}
+
+/* ── モックアップ帯 ── */
+.mockbar{height:46px;display:flex;align-items:center;gap:14px;padding:0 14px;border-bottom:1px solid var(--hair);background:var(--layer)}
+.mockbar .mtitle{font-weight:600;font-size:13px}
+.mockbar .mtitle span{color:var(--text3);font-weight:400;margin-left:8px;font-size:12px}
+.mockbar .hint{color:var(--text3);font-size:11.5px;margin-left:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mbtn{padding:5px 12px;border-radius:5px;border:1px solid var(--card-brd);background:var(--card);font-size:12px}
+.mbtn:hover{border-color:var(--accent)}
+.mbtn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+
+/* ── アプリ窓 ── */
+.app{position:relative;height:calc(100% - 46px);display:flex;flex-direction:column;background:var(--base);overflow:hidden}
+.titlebar{height:48px;flex:none;display:flex;align-items:center;padding-left:14px;gap:10px;
+  transition:height .5s ease,opacity .4s ease;overflow:hidden}
+.applogo{width:18px;height:18px;border-radius:5px;background:linear-gradient(135deg,#2B7CA3,#123C50);flex:none;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+.doctitle{font-size:13px;color:var(--text2)}
+.doctitle b{color:var(--text);font-weight:600}
+.caption{margin-left:auto;display:flex;align-self:stretch}
+.caption button{width:46px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text2);border-radius:0}
+.caption button:hover{background:rgba(128,128,128,.14);color:var(--text)}
+.caption button.close:hover{background:var(--close-hover);color:#fff}
+.cmdbar{height:40px;flex:none;display:flex;align-items:center;gap:2px;padding:0 10px;border-bottom:1px solid var(--hair);
+  background:var(--panel);transition:height .5s ease,opacity .4s ease;overflow:hidden}
+.cmdbar button{padding:5px 11px;border-radius:5px;color:var(--text2);font-size:12.5px}
+.cmdbar button:hover{background:rgba(128,128,128,.13);color:var(--text)}
+.cmdbar .primary{color:var(--accent);font-weight:600}
+.cmdbar .sep{width:1px;height:18px;background:var(--hair);margin:0 6px}
+.presenting .titlebar,.presenting .cmdbar,.presenting .statusbar{height:0;opacity:0;pointer-events:none;border:none}
+
+.main{flex:1;display:flex;min-height:0}
+/* ── サイドバー ── */
+.sidebar{width:280px;flex:none;border-right:1px solid var(--hair);background:var(--panel);
+  display:flex;flex-direction:column;transition:width .45s ease,opacity .35s ease;overflow:hidden}
+.presenting .sidebar{width:0;opacity:0;border:none}
+.sb-head{padding:10px 12px 6px;font-size:11px;letter-spacing:.06em;color:var(--text3);display:flex;align-items:center}
+.sb-head .views{margin-left:auto;display:flex;gap:2px}
+.sb-head .views button{padding:2px 7px;border-radius:4px;font-size:11px;color:var(--text3)}
+.sb-head .views button.on{background:var(--accent-soft);color:var(--accent)}
+.tree{flex:1;overflow-y:auto;padding:2px 6px 12px}
+.trow{display:flex;align-items:center;gap:7px;height:32px;padding:0 8px;border-radius:5px;cursor:pointer;
+  font-size:12.5px;color:var(--text2);position:relative;white-space:nowrap}
+.trow:hover{background:rgba(128,128,128,.12);color:var(--text)}
+.trow.sel{background:var(--accent-soft);color:var(--text)}
+.trow.sel::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:2px;background:var(--accent)}
+.trow .chev{width:12px;flex:none;font-size:9px;color:var(--text3);transition:transform .15s}
+.trow.closed .chev{transform:rotate(-90deg)}
+.trow .nd{width:8px;height:8px;border-radius:3px;flex:none}
+.trow .nd.d0{background:#1D5B79}.trow .nd.d1{background:#2B7CA3}.trow .nd.d2{background:#5AA9CB;border-radius:50%;width:7px;height:7px}
+.trow .tt{overflow:hidden;text-overflow:ellipsis;flex:1}
+.trow .lkdots{display:flex;gap:3px;flex:none}
+.trow .lkdots i{width:6px;height:6px;border-radius:50%;display:block}
+.trow .pg{flex:none;font-size:10px;color:var(--text3);background:rgba(128,128,128,.14);border-radius:8px;padding:1px 6px}
+.ind1{padding-left:24px}.ind2{padding-left:44px}
+
+/* ── キャンバス ── */
+.canvas-wrap{flex:1;position:relative;min-width:0;background:var(--canvas-bg);overflow:hidden}
+.canvas-wrap::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:radial-gradient(var(--dot) 1px, transparent 1.2px);background-size:26px 26px;opacity:.5}
+.canvas-wrap::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .9s;
+  background:radial-gradient(ellipse at 50% 45%, transparent 45%, rgba(4,7,10,.55) 100%)}
+.presenting .canvas-wrap::after{opacity:1}
+svg#stage{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
+
+/* nodes */
+.node{cursor:pointer}
+.node rect.body{filter:drop-shadow(0 2px 3px rgba(0,0,0,.14))}
+.node.l0 rect.body{fill:var(--n0-bg)}
+.node.l1 rect.body{fill:var(--n1-bg);stroke:var(--card-brd)}
+.node.l2 rect.body{fill:var(--n2-bg);stroke:var(--n2-brd);stroke-width:1}
+.node text{pointer-events:none;font-family:inherit}
+.node.l0 text.tt{fill:var(--n0-fg);font-size:15px;font-weight:600}
+.node.l1 text.tt{fill:var(--n1-fg);font-size:13.5px;font-weight:600}
+.node.l2 text.tt{fill:var(--text);font-size:12.5px;font-weight:500}
+.node text.pg{fill:var(--text3);font-size:10px}
+.node.l0 text.pg{fill:rgba(255,255,255,.6)}
+.node .bar{fill:var(--n1-bar)}
+.node .dot2{fill:var(--n2-dot)}
+.node rect.ring{fill:none;stroke:var(--accent);stroke-width:2;opacity:0;transition:opacity .45s}
+.node.sel rect.ring{opacity:1}
+.node{transition:opacity .5s}
+.node:hover rect.body{stroke:var(--accent);stroke-width:1.2}
+.dimmed .node:not(.rel):not(.sel){opacity:.32}
+.pulse{fill:none;stroke:var(--accent);stroke-width:2.5;opacity:.9;transform-box:fill-box;transform-origin:center;
+  animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.85;stroke-width:2.5}50%{opacity:.25;stroke-width:5}}
+
+/* edges */
+.t-edge{fill:none;stroke:var(--tree-edge);stroke-width:1.6;transition:opacity .5s}
+.x-casing{fill:none;stroke:var(--edge-casing);stroke-width:4.2;transition:opacity .5s}
+.x-edge{fill:none;stroke-width:2;transition:opacity .5s,stroke-width .3s;pointer-events:stroke;cursor:pointer}
+.x-edge.support{stroke:var(--lk-support)}
+.x-edge.echo{stroke:var(--lk-echo);stroke-dasharray:2.5 5}
+.x-edge.contrast{stroke:var(--lk-contrast);stroke-dasharray:9 4 2.5 4}
+.x-edge.cause{stroke:var(--lk-cause);stroke-width:2.5}
+.x-edge:hover{stroke-width:3.4}
+.dimmed .t-edge:not(.rel){opacity:.15}
+.dimmed .x-casing:not(.rel){opacity:.12}
+.dimmed .x-edge:not(.rel){opacity:.22}
+.x-glow{fill:none;stroke-width:3.6;opacity:0;stroke-dasharray:16 26;filter:drop-shadow(0 0 5px currentColor);transition:opacity .7s}
+.x-glow.support{stroke:var(--lk-support);color:var(--lk-support)}
+.x-glow.echo{stroke:var(--lk-echo);color:var(--lk-echo)}
+.x-glow.contrast{stroke:var(--lk-contrast);color:var(--lk-contrast)}
+.x-glow.cause{stroke:var(--lk-cause);color:var(--lk-cause)}
+.x-glow.flowing{opacity:.95;animation:flowdash 2.3s linear infinite}
+@keyframes flowdash{to{stroke-dashoffset:-42}}
+.m-support{fill:var(--lk-support)}.m-echo{fill:var(--lk-echo)}.m-contrast{fill:var(--lk-contrast)}.m-cause{fill:var(--lk-cause)}
+.elabel{opacity:0;transition:opacity .5s;pointer-events:none}
+.elabel rect{fill:var(--layer);stroke:var(--card-brd)}
+.elabel text{font-size:10.5px;fill:var(--text2)}
+.elabel.show{opacity:1}
+
+/* legend / minimap / zoom pill */
+.legend{position:absolute;left:14px;bottom:40px;z-index:3;background:var(--card);border:1px solid var(--card-brd);
+  backdrop-filter:blur(18px);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--text2);box-shadow:var(--shadow);
+  transition:opacity .5s}
+.legend .lg{display:flex;align-items:center;gap:8px;margin:4px 0}
+.legend svg{flex:none}
+.presenting .legend{opacity:0;pointer-events:none}
+.minimap{position:absolute;right:14px;bottom:40px;z-index:3;width:172px;height:112px;background:var(--card);
+  border:1px solid var(--card-brd);backdrop-filter:blur(18px);border-radius:8px;box-shadow:var(--shadow);cursor:pointer;
+  transition:opacity .5s}
+.presenting .minimap{opacity:0;pointer-events:none}
+.minimap svg{width:100%;height:100%;display:block}
+.minimap .mm-n{fill:#2B7CA3}.minimap .mm-n.m0{fill:#1D5B79}
+.minimap .mm-vp{fill:none;stroke:var(--accent);stroke-width:1.5}
+.zoompill{position:absolute;right:14px;bottom:162px;z-index:3;display:flex;align-items:center;gap:2px;
+  background:var(--card);border:1px solid var(--card-brd);backdrop-filter:blur(18px);border-radius:16px;
+  padding:3px 6px;box-shadow:var(--shadow);transition:opacity .5s}
+.zoompill button{padding:3px 8px;border-radius:12px;font-size:12px;color:var(--text2)}
+.zoompill button:hover{background:rgba(128,128,128,.15);color:var(--text)}
+.zoompill .pct{font-size:11.5px;color:var(--text2);min-width:42px;text-align:center;font-variant-numeric:tabular-nums}
+.presenting .zoompill{opacity:0;pointer-events:none}
+
+/* ── プレビュー ── */
+.smoke{position:absolute;inset:0;z-index:4;background:var(--smoke);backdrop-filter:blur(14px);
+  opacity:0;pointer-events:none;transition:opacity .65s}
+.smoke.on{opacity:1;pointer-events:auto}
+.preview{position:absolute;z-index:5;width:min(720px,78%);left:0;top:0;transform-origin:0 0;
+  background:var(--layer);border:1px solid var(--card-brd);border-radius:10px;box-shadow:var(--shadow);
+  opacity:0;pointer-events:none;display:flex;flex-direction:column;overflow:hidden}
+.preview.anim{transition:transform .72s cubic-bezier(.22,.94,.3,1),opacity .5s ease}
+.preview.open{opacity:1;pointer-events:auto}
+.pv-head{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--hair)}
+.pv-head .pv-t{font-weight:600;font-size:13.5px}
+.pv-head .pv-pg{font-size:10.5px;color:var(--text3);background:rgba(128,128,128,.14);border-radius:8px;padding:1px 7px}
+.pv-head .pv-x{margin-left:auto;color:var(--text3);padding:3px 9px;border-radius:5px}
+.pv-head .pv-x:hover{background:var(--close-hover);color:#fff}
+.pv-body{padding:14px}
+.pv-note{font-size:10.5px;color:var(--text3);padding:0 14px 10px}
+.slide{aspect-ratio:16/9;background:#fff;color:#15242C;border-radius:6px;border:1px solid rgba(0,0,0,.1);
+  padding:5.5% 6.5%;display:flex;flex-direction:column;box-shadow:inset 0 0 0 1px rgba(255,255,255,.6)}
+.slide .kick{font-size:10px;letter-spacing:.14em;color:#2B7CA3;font-weight:600}
+.slide h2{margin:.35em 0 .55em;font-size:clamp(16px,2.6vw,24px);color:#123C50;border-bottom:3px solid #1D5B79;padding-bottom:.3em}
+.slide ul{margin:0;padding-left:1.3em;font-size:clamp(11px,1.6vw,15px);color:#2A3B44}
+.slide li{margin:.4em 0}
+.slide .bars{display:flex;align-items:flex-end;gap:9%;height:34%;margin-top:auto;padding:0 6%}
+.slide .bars i{display:block;flex:1;background:linear-gradient(#2B7CA3,#1D5B79);border-radius:3px 3px 0 0;position:relative}
+.slide .bars i::after{content:attr(data-l);position:absolute;top:100%;left:50%;transform:translateX(-50%);font-size:9px;color:#5A6A73;margin-top:3px}
+.mdpage{background:var(--layer);border-radius:6px;padding:8px 6px;max-height:52vh;overflow:auto}
+.mdpage h1{font-size:20px;margin:.2em 0 .5em;border-bottom:1px solid var(--hair);padding-bottom:.3em}
+.mdpage p,.mdpage li{font-size:13.5px;color:var(--text2)}
+.mdpage blockquote{margin:.8em 0;padding:.5em .9em;border-left:3px solid #2B7CA3;background:var(--accent-soft);border-radius:0 6px 6px 0;color:var(--text)}
+.mdpage code{background:rgba(128,128,128,.16);border-radius:4px;padding:.1em .35em;font-size:12px}
+
+/* ── インスペクター ── */
+.inspector{position:absolute;top:0;right:0;bottom:0;width:300px;z-index:3;background:var(--card);
+  backdrop-filter:blur(24px);border-left:1px solid var(--card-brd);transform:translateX(102%);
+  transition:transform .45s cubic-bezier(.16,1,.3,1);padding:14px 16px;overflow-y:auto}
+.inspector.open{transform:none}
+.presenting .inspector{transform:translateX(102%)}
+.ins-k{font-size:10.5px;letter-spacing:.08em;color:var(--text3);margin:14px 0 4px}
+.ins-t{font-size:15px;font-weight:600}
+.ins-sum{font-size:12.5px;color:var(--text2)}
+.ins-close{position:absolute;top:8px;right:8px;color:var(--text3);padding:3px 8px;border-radius:5px}
+.ins-close:hover{background:rgba(128,128,128,.15)}
+.ins-lk{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);margin:6px 0;cursor:pointer}
+.ins-lk:hover{color:var(--text)}
+.ins-lk i{width:9px;height:9px;border-radius:50%;flex:none}
+.ins-btn{margin-top:16px;width:100%;padding:7px;border-radius:6px;background:var(--accent);color:#fff;font-weight:600;font-size:12.5px}
+.chip{display:inline-block;font-size:10.5px;background:rgba(128,128,128,.14);border-radius:8px;padding:1px 8px;color:var(--text2)}
+
+/* ── ステータスバー ── */
+.statusbar{height:26px;flex:none;display:flex;align-items:center;gap:16px;padding:0 12px;border-top:1px solid var(--hair);
+  background:var(--panel);font-size:11px;color:var(--text3);transition:height .5s,opacity .4s;overflow:hidden;font-variant-numeric:tabular-nums}
+.statusbar .right{margin-left:auto}
+
+/* ── プレゼン HUD ── */
+.hud{position:absolute;left:0;right:0;bottom:0;z-index:6;opacity:0;pointer-events:none;transition:opacity .7s}
+.presenting .hud{opacity:1}
+.hud .pline{height:2.5px;background:rgba(128,128,128,.25)}
+.hud .pfill{height:100%;width:0;background:var(--accent);transition:width .7s ease}
+.hud .pnum{position:absolute;right:14px;bottom:12px;font-size:12px;color:var(--text2);
+  background:var(--card);border:1px solid var(--card-brd);backdrop-filter:blur(12px);border-radius:12px;padding:2px 12px;font-variant-numeric:tabular-nums}
+.crumb{position:absolute;left:14px;top:12px;z-index:6;font-size:12px;color:var(--text2);opacity:0;transition:opacity .7s;
+  background:var(--card);border:1px solid var(--card-brd);backdrop-filter:blur(12px);border-radius:12px;padding:3px 12px}
+.presenting .crumb{opacity:1}
+.blackout{position:absolute;inset:0;z-index:40;background:#000;opacity:0;pointer-events:none;transition:opacity .6s}
+.blackout.on{opacity:1;pointer-events:auto}
+
+/* ── 設計メモ ── */
+.pin{position:absolute;z-index:20;display:none;align-items:center;gap:6px;max-width:250px;
+  background:var(--layer);border:1px solid var(--accent);border-radius:8px;padding:4px 9px;font-size:11px;color:var(--text2);
+  box-shadow:var(--shadow)}
+.notes-on .pin{display:flex}
+.pin b{flex:none;width:17px;height:17px;border-radius:50%;background:var(--accent);color:#fff;font-size:10.5px;
+  display:flex;align-items:center;justify-content:center;font-weight:600}
+.presenting .pin{display:none}
+
+@media (max-width:860px){
+  .sidebar{display:none}
+  .inspector{width:82%}
+  .legend{display:none}
+  .mockbar .hint{display:none}
+}
+</style>
+
+<div class="mockbar">
+  <div class="mtitle">KKTenji UIモックアップ<span>合成案「Mica Flow+」 / 操作できます</span></div>
+  <button class="mbtn" id="btnNotes">設計メモ</button>
+  <button class="mbtn" id="btnTheme">テーマ: 自動</button>
+  <div class="hint">ドラッグ=パン ・ ホイール=ズーム ・ ノードclick=プレビュー ・ F5=プレゼン ・ →/←=進行 ・ M=俯瞰 ・ B=暗転 ・ Esc=戻る</div>
+</div>
+
+<div class="app" id="app">
+  <div class="titlebar">
+    <div class="applogo"></div>
+    <div class="doctitle"><b>2026年度事業戦略.pptx</b> — KKTenji</div>
+    <div class="caption">
+      <button>—</button><button>▢</button><button class="close">✕</button>
+    </div>
+  </div>
+  <div class="cmdbar">
+    <button>開く</button><button>フォルダ</button>
+    <div class="sep"></div>
+    <button>検索</button><button id="btnFit2">フィット</button>
+    <div class="sep"></div>
+    <button class="primary" id="btnPres">▷ プレゼン開始 (F5)</button>
+    <div class="sep"></div>
+    <button>設定</button><button>ヘルプ</button>
+  </div>
+  <div class="main">
+    <div class="sidebar">
+      <div class="sb-head">アウトライン
+        <div class="views"><button class="on">構造</button><button>リンク</button><button>フロー</button></div>
+      </div>
+      <div class="tree" id="tree"></div>
+    </div>
+    <div class="canvas-wrap" id="cwrap">
+      <svg id="stage">
+        <defs>
+          <marker id="arr-support" markerWidth="8" markerHeight="8" refX="6.5" refY="4" orient="auto-start-reverse"><path class="m-support" d="M0,0.6 L7,4 L0,7.4 Z"/></marker>
+          <marker id="arr-echo" markerWidth="9" markerHeight="9" refX="6.5" refY="4.5" orient="auto-start-reverse"><path class="m-echo" d="M0.5,1 L7,4.5 L0.5,8" fill="none" stroke="var(--lk-echo)" stroke-width="1.6"/></marker>
+          <marker id="arr-contrast" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto-start-reverse"><path class="m-contrast" d="M4.5,0.8 L8.2,4.5 L4.5,8.2 L0.8,4.5 Z"/></marker>
+          <marker id="arr-cause" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto-start-reverse"><path class="m-cause" d="M0,0.4 L8.4,4.5 L0,8.6 Z"/></marker>
+        </defs>
+        <g id="world"></g>
+      </svg>
+      <div class="legend" id="legend"></div>
+      <div class="zoompill">
+        <button id="zOut">−</button><span class="pct" id="zPct">100%</span><button id="zIn">＋</button><button id="btnFit">フィット</button>
+      </div>
+      <div class="minimap" id="minimap"><svg id="mmsvg"></svg></div>
+      <div class="smoke" id="smoke"></div>
+      <div class="preview" id="preview"></div>
+      <div class="crumb" id="crumb"></div>
+      <div class="hud"><div class="pnum" id="pnum"></div><div class="pline"><div class="pfill" id="pfill"></div></div></div>
+    </div>
+    <div class="inspector" id="inspector"></div>
+  </div>
+  <div class="statusbar">
+    <span id="stNodes"></span><span id="stZoom"></span><span>ソース: pptx</span>
+    <span class="right" id="stPath">選択: なし</span>
+  </div>
+  <div class="blackout" id="blackout"></div>
+
+  <div class="pin" style="left:180px;top:58px"><b>1</b>自製タイトルバー。Mica材質・Win11流儀のキャプションボタン</div>
+  <div class="pin" style="left:320px;top:104px"><b>2</b>メニュー2段を1本のCommandBarへ統合</div>
+  <div class="pin" style="left:60px;top:210px"><b>3</b>アウトラインと画布は双方向同期(hover/クリック/選択)</div>
+  <div class="pin" style="left:38%;top:38%"><b>4</b>選択で無関係リンクを減光=フォーカスエンジン</div>
+  <div class="pin" style="left:20px;bottom:150px"><b>5</b>関係4種=色+線種+矢印形の三重符号化(色弱対応)</div>
+  <div class="pin" style="right:196px;bottom:96px"><b>6</b>大型deck用ミニマップ+現在視野枠</div>
+  <div class="pin" style="right:20px;top:180px"><b>7</b>関係インスペクター(選択時のみスライドイン)</div>
+</div>
+
+<script>
+(function(){
+"use strict";
+/* ── データ（サンプル deck）── */
+const SIZE={0:{w:250,h:92},1:{w:222,h:74},2:{w:200,h:58}};
+const COLX={0:70,1:440,2:830};
+const GAP=26;
+const NODES=[
+ {id:'cover',   title:'2026年度事業戦略', level:0, parent:null, page:1,  summary:'全社戦略の全体像を示す表紙。3章構成で現状→戦略→実行を語る。'},
+ {id:'ch1',     title:'第1章 現状分析',   level:1, parent:'cover', page:null, summary:'市場・自社・競合の3視点で現在地を確認する章。'},
+ {id:'market',  title:'市場動向',         level:2, parent:'ch1', page:2, summary:'国内市場は年率3%縮小、海外市場は6%成長。', bars:[['国内',38],['海外',82],['新興',64]]},
+ {id:'kadai',   title:'自社の課題',       level:2, parent:'ch1', page:3, summary:'主力製品の高齢化とデジタル人材の不足が2大課題。'},
+ {id:'kyogo',   title:'競合比較',         level:2, parent:'ch1', page:4, summary:'競合A社の海外売上比率45%に対し当社は12%。', bars:[['A社',90],['B社',58],['当社',24]]},
+ {id:'ch2',     title:'第2章 戦略の柱',   level:1, parent:'cover', page:null, summary:'「新製品 × 海外 × DX」の3本柱で成長を取り戻す章。'},
+ {id:'gaiyo',   title:'戦略概要',         level:2, parent:'ch2', page:5, summary:'3本柱の全体像と相互関係を1枚で示す。'},
+ {id:'p1',      title:'柱1 新製品ライン', level:2, parent:'ch2', page:6, summary:'2026Q2に新シリーズ投入。開発費は投資計画で裏付け。'},
+ {id:'p2',      title:'柱2 海外展開',     level:2, parent:'ch2', page:7, summary:'東南アジア3か国に販売網を構築。'},
+ {id:'p3',      title:'柱3 DX推進',       level:2, parent:'ch2', page:8, summary:'基幹システム刷新と人材リスキリング。'},
+ {id:'ch3',     title:'第3章 実行計画',   level:1, parent:'cover', page:null, summary:'ロードマップ・投資・KPIで実行を担保する章。'},
+ {id:'roadmap', title:'ロードマップ',     level:2, parent:'ch3', page:9, summary:'3年間のマイルストーンを四半期粒度で提示。'},
+ {id:'toshi',   title:'投資計画',         level:2, parent:'ch3', page:10, summary:'総投資額120億円。柱1に最重点配分。', bars:[['柱1',86],['柱2',52],['柱3',40]]},
+ {id:'kpi',     title:'KPI設定',          level:2, parent:'ch3', page:11, summary:'海外売上比率30%・新製品売上構成比25%を2028年目標に。'},
+ {id:'matome',  title:'まとめ',           level:1, parent:'cover', page:12, summary:'戦略の再確認と経営会議への依頼事項。', md:true}
+];
+const LINKS=[
+ {from:'toshi', to:'p1',    type:'support',  dir:'->',  label:'投資の裏付け', bow:1,  k:.30},
+ {from:'matome',to:'gaiyo', type:'echo',     dir:'<->', label:'戦略の再確認', bow:-1, k:.22},
+ {from:'kyogo', to:'kadai', type:'contrast', dir:'<->', label:'競合との対比', bow:1,  k:.55},
+ {from:'kadai', to:'p3',    type:'cause',    dir:'->',  label:'課題がDXの動機', bow:-1, k:.30}
+];
+const FLOW=['cover','market','kadai','kyogo','gaiyo','p1','toshi','p2','p3','roadmap','kpi','matome'];
+const TYPE_JA={support:'支撑',echo:'呼応',contrast:'対比',cause:'因果'};
+const byId={}; NODES.forEach(n=>byId[n.id]=n);
+const kids={}; NODES.forEach(n=>{if(n.parent){(kids[n.parent]=kids[n.parent]||[]).push(n)}});
+
+/* ── レイアウト ── */
+(function layout(){
+  let y=0;
+  function place(n){
+    const c=kids[n.id];
+    if(!c||!c.length){ n.y=y; y+=SIZE[n.level].h+GAP; }
+    else{ c.forEach(place);
+      const first=c[0], last=c[c.length-1];
+      n.y=(first.y+last.y+SIZE[last.level].h)/2-SIZE[n.level].h/2; }
+    n.x=COLX[n.level];
+  }
+  place(byId.cover);
+})();
+function ctr(n){return {x:n.x+SIZE[n.level].w/2, y:n.y+SIZE[n.level].h/2}}
+function edgePt(n,t){const c=ctr(n);let dx=t.x-c.x,dy=t.y-c.y;
+  const hw=SIZE[n.level].w/2+7,hh=SIZE[n.level].h/2+7;
+  const s=1/Math.max(Math.abs(dx)/hw,Math.abs(dy)/hh,1e-6);
+  return {x:c.x+dx*Math.min(s,1),y:c.y+dy*Math.min(s,1)}}
+
+/* ── SVG 構築 ── */
+const NS='http://www.w3.org/2000/svg';
+const world=document.getElementById('world');
+function el(t,attrs,parent){const e=document.createElementNS(NS,t);for(const k in attrs)e.setAttribute(k,attrs[k]);(parent||world).appendChild(e);return e}
+const gT=el('g',{}), gX=el('g',{}), gN=el('g',{}), gL=el('g',{});
+/* 樹エッジ */
+NODES.forEach(n=>{ if(!n.parent)return; const p=byId[n.parent];
+  const x1=p.x+SIZE[p.level].w, y1=ctr(p).y, x2=n.x, y2=ctr(n).y, dx=(x2-x1)*.5;
+  const path=el('path',{d:`M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}`,class:'t-edge'},gT);
+  path.dataset.a=p.id; path.dataset.b=n.id;
+});
+/* 跨頁リンク */
+const edgeEls=[];
+LINKS.forEach((lk,i)=>{
+  const a=byId[lk.from], b=byId[lk.to], ca=ctr(a), cb=ctr(b);
+  const mx=(ca.x+cb.x)/2, my=(ca.y+cb.y)/2;
+  const dx=cb.x-ca.x, dy=cb.y-ca.y, dist=Math.hypot(dx,dy)||1;
+  const nx=-dy/dist, ny=dx/dist;
+  const c={x:mx+nx*dist*lk.k*lk.bow, y:my+ny*dist*lk.k*lk.bow};
+  const p1=edgePt(a,c), p2=edgePt(b,c);
+  const d=`M${p1.x},${p1.y} Q${c.x},${c.y} ${p2.x},${p2.y}`;
+  const cas=el('path',{d,class:'x-casing'},gX);
+  const glow=el('path',{d,class:'x-glow '+lk.type},gX);
+  const main=el('path',{d,class:'x-edge '+lk.type,'marker-end':`url(#arr-${lk.type})`},gX);
+  if(lk.dir==='<->')main.setAttribute('marker-start',`url(#arr-${lk.type})`);
+  const lbl=el('g',{class:'elabel'},gL);
+  const t05={x:.25*p1.x+.5*c.x+.25*p2.x, y:.25*p1.y+.5*c.y+.25*p2.y};
+  const txt=el('text',{x:0,y:0,'text-anchor':'middle','dominant-baseline':'middle'},lbl);
+  txt.textContent=`${TYPE_JA[lk.type]}・${lk.label}`;
+  lbl.setAttribute('transform',`translate(${t05.x},${t05.y})`);
+  const rect=el('rect',{rx:8},lbl); lbl.insertBefore(rect,txt);
+  edgeEls.push({lk,cas,glow,main,lbl,txt,rect});
+  main.addEventListener('pointerenter',()=>lbl.classList.add('show'));
+  main.addEventListener('pointerleave',()=>{if(!sel||!(lk.from===sel||lk.to===sel))lbl.classList.remove('show')});
+});
+/* ノード */
+const nodeEls={};
+NODES.forEach(n=>{
+  const s=SIZE[n.level];
+  const g=el('g',{class:'node l'+n.level,transform:`translate(${n.x},${n.y})`},gN);
+  g.dataset.id=n.id;
+  el('rect',{class:'body',width:s.w,height:s.h,rx:n.level===0?10:8},g);
+  if(n.level===1)el('rect',{class:'bar',x:0,y:10,width:4,height:s.h-20,rx:2},g);
+  if(n.level===2)el('circle',{class:'dot2',cx:16,cy:s.h/2,r:4},g);
+  const tx=el('text',{class:'tt',x:n.level===2?30:16,y:s.h/2+(n.level===0?-4:1),'dominant-baseline':'middle'},g);
+  tx.textContent=n.title;
+  if(n.level===0){const st=el('text',{class:'pg',x:16,y:s.h/2+20},g);st.textContent='deck 表紙 ・ 全12ページ'}
+  else if(n.page){const pt=el('text',{class:'pg',x:s.w-12,y:s.h-10,'text-anchor':'end'},g);pt.textContent='P'+n.page}
+  el('rect',{class:'ring',x:-3,y:-3,width:s.w+6,height:s.h+6,rx:n.level===0?12:10},g);
+  nodeEls[n.id]=g;
+  g.addEventListener('pointerenter',()=>hover(n.id,true));
+  g.addEventListener('pointerleave',()=>hover(n.id,false));
+});
+/* ラベル寸法 */
+requestAnimationFrame(()=>{edgeEls.forEach(e=>{const bb=e.txt.getBBox();
+  e.rect.setAttribute('x',bb.x-8);e.rect.setAttribute('y',bb.y-4);
+  e.rect.setAttribute('width',bb.width+16);e.rect.setAttribute('height',bb.height+8);})});
+
+/* ── カメラ ── */
+const stage=document.getElementById('stage'), cwrap=document.getElementById('cwrap');
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let cam={x:0,y:0,s:1}, camT={x:0,y:0,s:1}, flight=null;
+function bounds(){let x1=1e9,y1=1e9,x2=-1e9,y2=-1e9;
+  NODES.forEach(n=>{x1=Math.min(x1,n.x);y1=Math.min(y1,n.y);x2=Math.max(x2,n.x+SIZE[n.level].w);y2=Math.max(y2,n.y+SIZE[n.level].h)});
+  return{x:x1,y:y1,w:x2-x1,h:y2-y1}}
+const B=bounds();
+function viewSize(){return{w:cwrap.clientWidth,h:cwrap.clientHeight}}
+function fitCam(pad){const v=viewSize(),p=pad||60;
+  const s=Math.min((v.w-p*2)/B.w,(v.h-p*2)/B.h,1.15);
+  return{x:(v.w-B.w*s)/2-B.x*s, y:(v.h-B.h*s)/2-B.y*s, s}}
+function ease(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2}
+function flyTo(target,dur,cb){
+  if(reduced||dur===0){cam={...target};camT={...target};if(cb)cb();return}
+  flight={t0:performance.now(),dur,from:{...cam},to:{...target},cb}; camT={...target};
+}
+function centerOn(n,s,dur,cb){const v=viewSize(),c=ctr(n);
+  flyTo({x:v.w/2-c.x*s, y:v.h/2-c.y*s, s},dur,cb)}
+function tick(now){
+  if(flight){const t=Math.min(1,(now-flight.t0)/flight.dur), e=ease(t);
+    cam.x=flight.from.x+(flight.to.x-flight.from.x)*e;
+    cam.y=flight.from.y+(flight.to.y-flight.from.y)*e;
+    cam.s=flight.from.s+(flight.to.s-flight.from.s)*e;
+    if(t>=1){const cb=flight.cb;flight=null;if(cb)cb()}}
+  else{cam.x+=(camT.x-cam.x)*.12;cam.y+=(camT.y-cam.y)*.12;cam.s+=(camT.s-cam.s)*.12}
+  world.setAttribute('transform',`translate(${cam.x} ${cam.y}) scale(${cam.s})`);
+  updHud(); requestAnimationFrame(tick)}
+requestAnimationFrame(tick);
+/* パン */
+let drag=null;
+stage.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.node')||e.target.classList.contains('x-edge'))return;
+  drag={x:e.clientX,y:e.clientY,cx:camT.x,cy:camT.y,moved:false};
+  stage.setPointerCapture(e.pointerId)});
+stage.addEventListener('pointermove',e=>{if(!drag)return;
+  const dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+  if(Math.abs(dx)+Math.abs(dy)>3)drag.moved=true;
+  flight=null; camT.x=drag.cx+dx;camT.y=drag.cy+dy;cam.x=camT.x;cam.y=camT.y});
+stage.addEventListener('pointerup',e=>{const wasDrag=drag&&drag.moved;drag=null;
+  if(!wasDrag&&!e.target.closest('.node')&&!e.target.classList.contains('x-edge')){clearSel()}});
+/* ズーム */
+stage.addEventListener('wheel',e=>{e.preventDefault();flight=null;
+  const f=Math.exp(-e.deltaY*.0014);
+  const ns=Math.min(3,Math.max(.15,camT.s*f));
+  const r=cwrap.getBoundingClientRect(), px=e.clientX-r.left, py=e.clientY-r.top;
+  camT.x=px-(px-camT.x)*ns/camT.s; camT.y=py-(py-camT.y)*ns/camT.s; camT.s=ns},{passive:false});
+document.getElementById('zIn').onclick=()=>{camT.s=Math.min(3,camT.s*1.25)};
+document.getElementById('zOut').onclick=()=>{camT.s=Math.max(.15,camT.s/1.25)};
+document.getElementById('btnFit').onclick=()=>flyTo(fitCam(),850);
+document.getElementById('btnFit2').onclick=()=>flyTo(fitCam(),850);
+
+/* ── ミニマップ / ステータス ── */
+const mmsvg=document.getElementById('mmsvg');
+const MW=172,MH=112,mpad=8;
+const msc=Math.min((MW-mpad*2)/B.w,(MH-mpad*2)/B.h);
+const mox=(MW-B.w*msc)/2-B.x*msc, moy=(MH-B.h*msc)/2-B.y*msc;
+mmsvg.setAttribute('viewBox',`0 0 ${MW} ${MH}`);
+NODES.forEach(n=>{const s=SIZE[n.level];
+  el('rect',{x:n.x*msc+mox,y:n.y*msc+moy,width:s.w*msc,height:s.h*msc,rx:1.5,class:'mm-n'+(n.level===0?' m0':'')},mmsvg)});
+const mmvp=el('rect',{class:'mm-vp',rx:2},mmsvg);
+document.getElementById('minimap').addEventListener('click',e=>{
+  const r=e.currentTarget.getBoundingClientRect();
+  const wx=(e.clientX-r.left-mox)/msc, wy=(e.clientY-r.top-moy)/msc, v=viewSize();
+  flyTo({x:v.w/2-wx*camT.s,y:v.h/2-wy*camT.s,s:camT.s},650)});
+const zPct=document.getElementById('zPct'), stZoom=document.getElementById('stZoom');
+document.getElementById('stNodes').textContent=`ノード ${NODES.length} ・ リンク ${LINKS.length}`;
+function updHud(){const v=viewSize();
+  zPct.textContent=Math.round(cam.s*100)+'%'; stZoom.textContent='ズーム '+Math.round(cam.s*100)+'%';
+  mmvp.setAttribute('x',(-cam.x/cam.s)*msc+mox); mmvp.setAttribute('y',(-cam.y/cam.s)*msc+moy);
+  mmvp.setAttribute('width',v.w/cam.s*msc); mmvp.setAttribute('height',v.h/cam.s*msc)}
+
+/* ── 凡例 ── */
+const lgd=document.getElementById('legend');
+lgd.innerHTML=[['support','支撑（実線）'],['echo','呼応（点線・両向き）'],['contrast','対比（一点鎖線）'],['cause','因果（太実線）']]
+ .map(([t,l])=>`<div class="lg"><svg width="34" height="10"><path d="M1,7 Q17,-3 33,7" class="x-edge ${t}" marker-end="url(#arr-${t})"/></svg>${l}</div>`).join('');
+
+/* ── ツリー ── */
+const tree=document.getElementById('tree');
+function lkDots(id){const ts=LINKS.filter(l=>l.from===id||l.to===id).map(l=>l.type);
+  return ts.length?`<span class="lkdots">${ts.map(t=>`<i style="background:var(--lk-${t})"></i>`).join('')}</span>`:''}
+function trow(n,depth){const d=document.createElement('div');
+  d.className=`trow ind${depth}`; d.dataset.id=n.id;
+  d.innerHTML=`<span class="chev">${kids[n.id]?'▾':''}</span><span class="nd d${n.level}"></span>
+   <span class="tt">${n.title}</span>${lkDots(n.id)}${n.page?`<span class="pg">P${n.page}</span>`:''}`;
+  d.addEventListener('click',()=>openNode(n.id));
+  d.addEventListener('pointerenter',()=>hover(n.id,true));
+  d.addEventListener('pointerleave',()=>hover(n.id,false));
+  return d}
+(function buildTree(){
+  tree.appendChild(trow(byId.cover,0));
+  (kids.cover||[]).forEach(c1=>{tree.appendChild(trow(c1,1));
+    (kids[c1.id]||[]).forEach(c2=>tree.appendChild(trow(c2,2)))})})();
+
+/* ── 選択・フォーカスエンジン ── */
+let sel=null;
+function related(id){const r=new Set([id]);
+  const n=byId[id]; if(n.parent)r.add(n.parent);
+  (kids[id]||[]).forEach(c=>r.add(c.id));
+  LINKS.forEach(l=>{if(l.from===id)r.add(l.to); if(l.to===id)r.add(l.from)});
+  return r}
+function applyFocus(){
+  const has=!!sel; world.classList.toggle('dimmed',has);
+  const rel=has?related(sel):null;
+  NODES.forEach(n=>{const g=nodeEls[n.id];
+    g.classList.toggle('sel',n.id===sel);
+    g.classList.toggle('rel',has&&rel.has(n.id))});
+  gT.querySelectorAll('.t-edge').forEach(p=>p.classList.toggle('rel',has&&(p.dataset.a===sel||p.dataset.b===sel)));
+  edgeEls.forEach(e=>{const on=has&&(e.lk.from===sel||e.lk.to===sel);
+    e.cas.classList.toggle('rel',on); e.main.classList.toggle('rel',on);
+    e.lbl.classList.toggle('show',on)});
+  tree.querySelectorAll('.trow').forEach(r=>r.classList.toggle('sel',r.dataset.id===sel));
+  document.getElementById('stPath').textContent='選択: '+(sel?pathOf(sel):'なし');
+}
+function pathOf(id){const parts=[];let n=byId[id];while(n){parts.unshift(n.title.replace(/^第\d章 /,''));n=n.parent?byId[n.parent]:null}
+  return parts.join(' › ')}
+function hover(id,on){if(sel)return;
+  edgeEls.forEach(e=>{if(e.lk.from===id||e.lk.to===id){e.main.style.strokeWidth=on?'3.4':'';e.lbl.classList.toggle('show',on)}})}
+function clearSel(){sel=null;applyFocus();closePreview();closeInspector()}
+
+/* ── インスペクター ── */
+const insp=document.getElementById('inspector');
+function openInspector(n){
+  const lks=LINKS.filter(l=>l.from===n.id||l.to===n.id);
+  insp.innerHTML=`<button class="ins-close" id="insX">✕</button>
+   <div class="ins-k">${n.level===0?'表紙':n.level===1?'章':'ページ'}${n.page?` ・ <span class="chip">P${n.page}</span>`:''}</div>
+   <div class="ins-t">${n.title}</div>
+   <div class="ins-k">要約</div><div class="ins-sum">${n.summary}</div>
+   <div class="ins-k">関係リンク（${lks.length}）</div>
+   ${lks.length?lks.map(l=>{const other=l.from===n.id?l.to:l.from;const arrow=l.dir==='<->'?'⟷':(l.from===n.id?'→':'←');
+     return `<div class="ins-lk" data-go="${other}"><i style="background:var(--lk-${l.type})"></i>${TYPE_JA[l.type]} ${arrow} ${byId[other].title}<span style="margin-left:auto;color:var(--text3);font-size:10.5px">${l.label}</span></div>`}).join('')
+    :'<div class="ins-sum">なし</div>'}
+   ${n.page?'<button class="ins-btn" id="insOpen">この頁をプレビュー</button>':''}`;
+  insp.classList.add('open');
+  insp.querySelector('#insX').onclick=closeInspector;
+  insp.querySelectorAll('.ins-lk').forEach(r=>r.onclick=()=>openNode(r.dataset.go));
+  const b=insp.querySelector('#insOpen'); if(b)b.onclick=()=>openPreview(n);
+}
+function closeInspector(){insp.classList.remove('open')}
+
+/* ── プレビュー ── */
+const pv=document.getElementById('preview'), smoke=document.getElementById('smoke');
+let pvOpen=false;
+function slideHTML(n){
+  if(n.md)return `<div class="mdpage"><h1>まとめ</h1>
+    <p>本日ご説明した<strong>3本柱</strong>の戦略は、第1章の現状分析から必然的に導かれるものです。</p>
+    <ul><li>柱1: 新製品ライン — <code>2026Q2</code> 投入</li><li>柱2: 海外展開 — 東南アジア3か国</li><li>柱3: DX推進 — 基幹刷新+リスキリング</li></ul>
+    <blockquote>経営会議への依頼: 投資枠120億円の承認、および海外現地法人設立の決議。</blockquote></div>`;
+  const bars=n.bars?`<div class="bars">${n.bars.map(([l,v])=>`<i data-l="${l}" style="height:${v}%"></i>`).join('')}</div>`:'';
+  const lis={cover:['現状分析 — 市場・自社・競合','戦略の柱 — 新製品 × 海外 × DX','実行計画 — ロードマップ・投資・KPI'],
+   market:['国内市場は年率 3% 縮小が継続','海外市場は 6% 成長、特に東南アジア','価格競争から価値競争への転換期'],
+   kadai:['主力製品の平均投入年齢 8.2 年','デジタル人材が計画比 40% 不足'],
+   kyogo:['競合A社: 海外売上比率 45%','当社: 12% — 最大のギャップ'],
+   gaiyo:['3本柱は相互に連関する一体の戦略','各柱に専任役員をアサイン'],
+   p1:['新シリーズ「K-Line」2026Q2 投入','開発費は投資計画で最重点配分'],
+   p2:['タイ・ベトナム・インドネシアに販売網','現地パートナー2社と基本合意済'],
+   p3:['基幹システムを 2027 年までに刷新','全社員リスキリング・プログラム開始'],
+   roadmap:['2026: 基盤構築 / 2027: 拡大 / 2028: 刈取り','四半期ごとに経営会議でレビュー'],
+   toshi:['総投資額 120 億円(3年間)','柱1 に 55%、柱2 に 30%、柱3 に 15%'],
+   kpi:['海外売上比率 30%(現状12%)','新製品売上構成比 25% を 2028 年目標に']}[n.id]||[];
+  return `<div class="slide"><div class="kick">2026年度事業戦略</div><h2>${n.title}</h2>
+    <ul>${lis.map(x=>`<li>${x}</li>`).join('')}</ul>${bars}</div>`;
+}
+function nodeScreenRect(n){const s=SIZE[n.level];
+  return{x:cam.x+n.x*cam.s,y:cam.y+n.y*cam.s,w:s.w*cam.s,h:s.h*cam.s}}
+function openPreview(n,inPres){
+  if(!n.page)return;
+  pv.innerHTML=`<div class="pv-head"><span class="pv-t">${n.title}</span>
+    ${n.page?`<span class="pv-pg">P${n.page}</span>`:''}
+    <span class="pv-pg">${n.md?'md レンダリング例':'PowerPoint 書き出し PNG(モック)'}</span>
+    <button class="pv-x" id="pvX">✕</button></div>
+    <div class="pv-body">${slideHTML(n)}</div>
+    <div class="pv-note">実物では ${n.md?'md をアプリが整形描画':'ローカル PowerPoint で書き出した高解像度 PNG を表示'}します。Esc で戻る。</div>`;
+  pv.querySelector('#pvX').onclick=()=>{closePreview()};
+  const v=viewSize();
+  pv.classList.remove('anim'); pv.classList.add('open');
+  const fw=Math.min(720,v.w*.78);
+  pv.style.width=fw+'px';
+  const r=nodeScreenRect(n);
+  pv.style.transform=`translate(${r.x}px,${r.y}px) scale(${Math.max(.05,r.w/fw)})`;
+  pv.style.opacity='0';
+  void pv.offsetWidth;
+  const fh=pv.offsetHeight;
+  const tx=(v.w-fw)/2, ty=Math.max(16,(v.h-fh)/2 - (inPres?10:0));
+  pv.classList.add('anim');
+  pv.style.transform=`translate(${tx}px,${ty}px) scale(1)`;
+  pv.style.opacity='1';
+  smoke.classList.add('on'); pvOpen=true;
+}
+function closePreview(){if(!pvOpen)return;pvOpen=false;
+  pv.classList.remove('open');pv.style.opacity='0';smoke.classList.remove('on')}
+smoke.addEventListener('click',()=>{if(pres)return;closePreview()});
+
+/* ── ノードを開く（クリック共通経路）── */
+function openNode(id){
+  const n=byId[id]; sel=id; applyFocus(); openInspector(n);
+  const v=viewSize(); const targetS=Math.min(1.4,Math.max(1.1,camT.s));
+  centerOn(n,targetS,880,()=>{if(n.page&&!pres)openPreview(n)});
+}
+gN.addEventListener('click',e=>{const g=e.target.closest('.node');if(!g||pres)return;openNode(g.dataset.id)});
+
+/* ── プレゼンモード ── */
+let pres=false, pidx=0, overview=false, pulseEl=null;
+const appEl=document.getElementById('app');
+const pnum=document.getElementById('pnum'), pfill=document.getElementById('pfill'), crumb=document.getElementById('crumb');
+function setFlowGlow(id){edgeEls.forEach(e=>e.glow.classList.toggle('flowing',!!id&&(e.lk.from===id||e.lk.to===id)))}
+function pStep(i,skipFly){
+  pidx=Math.max(0,Math.min(FLOW.length-1,i));
+  const id=FLOW[pidx], n=byId[id];
+  overview=false; removePulse(); closePreview();
+  sel=id; applyFocus(); closeInspector();
+  setFlowGlow(id);
+  pnum.textContent=(pidx+1)+' / '+FLOW.length;
+  pfill.style.width=((pidx+1)/FLOW.length*100)+'%';
+  crumb.textContent=pathOf(id);
+  const dur=skipFly?0:1100;
+  centerOn(n,1.35,dur,()=>{if(n.page)openPreview(n,true)});
+}
+function removePulse(){if(pulseEl){pulseEl.remove();pulseEl=null}}
+function pOverview(){
+  if(overview){pStep(pidx,false);return}
+  overview=true; closePreview();
+  const n=byId[FLOW[pidx]], s=SIZE[n.level];
+  removePulse();
+  pulseEl=el('rect',{class:'pulse',x:n.x-8,y:n.y-8,width:s.w+16,height:s.h+16,rx:14},gN);
+  flyTo(fitCam(80),1100);
+}
+function enterPres(){if(pres)return;pres=true;
+  appEl.classList.add('presenting'); clearSel(); closeInspector();
+  flyTo(fitCam(80),700,()=>setTimeout(()=>pStep(0),350))}
+function exitPres(){if(!pres)return;pres=false;
+  appEl.classList.remove('presenting');
+  document.getElementById('blackout').classList.remove('on');
+  removePulse(); setFlowGlow(null); closePreview(); clearSel();
+  flyTo(fitCam(),900)}
+document.getElementById('btnPres').onclick=enterPres;
+
+/* ── キーボード ── */
+document.addEventListener('keydown',e=>{
+  if(e.key==='F5'){e.preventDefault();if(!pres)enterPres();return}
+  if(pres){
+    if(e.key==='Escape'){exitPres()}
+    else if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){e.preventDefault();pStep(pidx+1)}
+    else if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();pStep(pidx-1)}
+    else if(e.key==='m'||e.key==='M'){pOverview()}
+    else if(e.key==='b'||e.key==='B'){document.getElementById('blackout').classList.toggle('on')}
+    return}
+  if(e.key==='Escape'){if(pvOpen)closePreview();else clearSel()}
+});
+document.getElementById('blackout').addEventListener('click',function(){this.classList.remove('on')});
+
+/* ── モックバー ── */
+const root=document.documentElement;
+let themeMode='auto';
+document.getElementById('btnTheme').onclick=function(){
+  themeMode=themeMode==='auto'?'light':themeMode==='light'?'dark':'auto';
+  if(themeMode==='auto')delete root.dataset.theme;else root.dataset.theme=themeMode;
+  this.textContent='テーマ: '+(themeMode==='auto'?'自動':themeMode==='light'?'ライト':'ダーク')};
+document.getElementById('btnNotes').onclick=function(){
+  appEl.classList.toggle('notes-on');this.classList.toggle('on')};
+
+/* 初期表示 */
+flyTo(fitCam(),0);
+setTimeout(()=>flyTo(fitCam(),0),120);
+window.addEventListener('resize',()=>{if(!pres&&!pvOpen)flyTo(fitCam(),300)});
+})();
+</script>
