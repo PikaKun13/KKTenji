@@ -74,14 +74,24 @@ export class Preview {
     pv.style.transform = `translate(${from.x}px,${from.y}px) scale(${Math.max(0.05, from.w / fw)})`;
     pv.style.opacity = '0';
     void pv.offsetWidth;
-    const fh = pv.offsetHeight;
-    const tx = (viewW - fw) / 2;
-    const ty = Math.max(16, (viewH - fh) / 2);
     pv.classList.add('anim');
-    pv.style.transform = `translate(${tx}px,${ty}px) scale(1)`;
+    this.place(viewW, viewH);
     pv.style.opacity = '1';
     this.smoke.classList.add('on');
     this.isOpen = true;
+    // 画像の読み込みで高さが変わったら再配置（低すぎ/はみ出し防止）
+    content.el.querySelectorAll('img').forEach(img => {
+      img.addEventListener('load', () => { if (this.isOpen) this.place(viewW, viewH); });
+    });
+  }
+
+  /** 光学中心（上から42%）に置き、上下 16px を必ず確保する */
+  private place(viewW: number, viewH: number): void {
+    const fh = this.pv.offsetHeight;
+    const fw = this.pv.offsetWidth;
+    const tx = (viewW - fw) / 2;
+    const ty = Math.max(16, Math.min((viewH - fh) * 0.42, viewH - fh - 16));
+    this.pv.style.transform = `translate(${tx}px,${ty}px) scale(1)`;
   }
 
   close(): void {

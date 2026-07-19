@@ -74,6 +74,29 @@ class App {
       hudHost: this.canvasWrap,
       flow: () => (this.deck ? effectiveFlow(this.deck) : []),
       hasPage: id => this.deck?.nodes.get(id)?.page != null,
+      chapterOf: id => {
+        let n = this.deck?.nodes.get(id);
+        n = n?.parent ? this.deck?.nodes.get(n.parent) : undefined;
+        while (n && n.page !== null) {
+          n = n.parent ? this.deck?.nodes.get(n.parent) : undefined;
+        }
+        return n?.id ?? null;
+      },
+      fitSubtree: (id, dur, cb) => {
+        if (!this.layout) return;
+        const ids = [id, ...(this.deck?.children.get(id) ?? []).map(c => c.id)];
+        let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+        for (const nid of ids) {
+          const b = this.layout.boxes.get(nid);
+          if (!b) continue;
+          x1 = Math.min(x1, b.x); y1 = Math.min(y1, b.y);
+          x2 = Math.max(x2, b.x + b.w); y2 = Math.max(y2, b.y + b.h);
+        }
+        if (x1 === Infinity) return;
+        this.camera.flyTo(
+          this.camera.fitCam({ x: x1, y: y1, w: x2 - x1, h: y2 - y1 }, 110), dur, cb,
+        );
+      },
       flyToNode: (id, s, dur, cb) => {
         const b = this.layout?.boxes.get(id);
         if (b) this.camera.centerOn(b, s, dur, cb);
@@ -108,6 +131,12 @@ class App {
         for (const r of rest) {
           if (r.startsWith('sel=')) setTimeout(() => this.openNode(r.slice(4)), 800);
           if (r === 'pres=1') setTimeout(() => this.presenter.enter(), 800);
+          if (r === 'pres=auto') { // 検証用: 2.6s ごとに自動步進
+            setTimeout(() => {
+              this.presenter.enter();
+              setInterval(() => { if (this.presenter.active) this.presenter.next(); }, 2600);
+            }, 800);
+          }
         }
       });
     }
