@@ -19,6 +19,8 @@
     "marked": "^15.0.7"
   },
   "devDependencies": {
+    "electron": "^43.1.1",
+    "electron-builder": "^26.15.3",
     "jsdom": "^26.0.0",
     "typescript": "^5.7.3",
     "vite": "^6.2.0",

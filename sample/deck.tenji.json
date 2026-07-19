@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "deckId": "sample-senryaku-2026",
+  "title": "2026年度事業戦略",
+  "generator": "claude/2026-07-19",
+  "source": { "type": "md", "path": "deck.md", "pageBy": "h2" },
+  "nodes": [
+    { "id": "cover",   "title": "2026年度事業戦略", "parent": null,    "page": 1,  "summary": "全社戦略の全体像。現状→戦略→実行の3章構成。" },
+    { "id": "ch-genjo",   "title": "第1章 現状分析", "parent": "cover", "page": null, "summary": "市場・自社・競合の3視点で現在地を確認する章。" },
+    { "id": "market",  "title": "市場動向",       "parent": "ch-genjo", "page": 2,  "summary": "国内は縮小、海外は6%成長。価値競争への転換期。" },
+    { "id": "kadai",   "title": "自社の課題",     "parent": "ch-genjo", "page": 3,  "summary": "製品高齢化とデジタル人材不足の2大課題。" },
+    { "id": "kyogo",   "title": "競合比較",       "parent": "ch-genjo", "page": 4,  "summary": "海外売上比率 A社45% vs 当社12% が最大ギャップ。" },
+    { "id": "ch-hashira",  "title": "第2章 戦略の柱", "parent": "cover", "page": null, "summary": "新製品×海外×DX の3本柱で成長を取り戻す章。" },
+    { "id": "gaiyo",   "title": "戦略概要",       "parent": "ch-hashira", "page": 5, "summary": "3本柱の全体像。各柱に専任役員。" },
+    { "id": "shinseihin", "title": "柱1 新製品ライン", "parent": "ch-hashira", "page": 6, "summary": "K-Line を 2026Q2 投入。投資の最重点。" },
+    { "id": "kaigai",  "title": "柱2 海外展開",   "parent": "ch-hashira", "page": 7, "summary": "東南アジア3か国に販売網。2027 現地法人。" },
+    { "id": "dx",      "title": "柱3 DX推進",     "parent": "ch-hashira", "page": 8, "summary": "基幹刷新+リスキリング+データ基盤統合。" },
+    { "id": "ch-jikko",   "title": "第3章 実行計画", "parent": "cover", "page": null, "summary": "ロードマップ・投資・KPI で実行を担保する章。" },
+    { "id": "roadmap", "title": "ロードマップ",   "parent": "ch-jikko", "page": 9,  "summary": "2026 基盤 / 2027 拡大 / 2028 刈り取り。" },
+    { "id": "toshi",   "title": "投資計画",       "parent": "ch-jikko", "page": 10, "summary": "総額120億円。柱1に55%を重点配分。" },
+    { "id": "kpi",     "title": "KPI設定",        "parent": "ch-jikko", "page": 11, "summary": "海外売上比率30%・新製品構成比25%を2028年目標に。" },
+    { "id": "matome",  "title": "まとめ",         "parent": "cover",    "page": 12, "summary": "戦略の再確認と経営会議への依頼事項。" }
+  ],
+  "links": [
+    { "from": "toshi",  "to": "shinseihin", "type": "support",  "direction": "->",  "label": "投資の裏付け" },
+    { "from": "matome", "to": "gaiyo",      "type": "echo",     "direction": "<->", "label": "戦略の再確認" },
+    { "from": "kyogo",  "to": "kadai",      "type": "contrast", "direction": "<->", "label": "競合との対比" },
+    { "from": "kadai",  "to": "dx",         "type": "cause",    "direction": "->",  "label": "課題がDXの動機" }
+  ],
+  "flow": [
+    "cover", "market", "kadai", "kyogo",
+    "gaiyo", "shinseihin", "toshi", "kaigai", "dx",
+    "roadmap", "kpi", "matome"
+  ]
+}
