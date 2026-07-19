@@ -101,6 +101,15 @@ class App {
           setTimeout(() => this.openNode('kadai'), 800);
         }
       });
+    } else if (location.hash.startsWith('#open=')) {
+      // #open=<encodeURIComponent(path)>[&sel=<nodeId>|&pres=1]
+      const [openPart, ...rest] = location.hash.slice(6).split('&');
+      void this.openByPath(decodeURIComponent(openPart)).then(() => {
+        for (const r of rest) {
+          if (r.startsWith('sel=')) setTimeout(() => this.openNode(r.slice(4)), 800);
+          if (r === 'pres=1') setTimeout(() => this.presenter.enter(), 800);
+        }
+      });
     }
   }
 
@@ -507,7 +516,9 @@ class App {
         sourceLabel = 'PowerPoint 書き出し PNG';
         note = 'ローカル PowerPoint で書き出した静的画像です。Esc で戻る。';
       } else {
-        el = this.placeholder('プレビューを生成できません（PowerPoint 未検出）');
+        el = this.placeholder(this.officeOk
+          ? 'プレビュー画像を生成できませんでした（右下の診断を参照）'
+          : 'プレビューを生成できません（PowerPoint 未検出）');
         sourceLabel = 'pptx';
         note = '関係図・アウトライン・プレゼン運鏡はそのまま利用できます。';
       }

@@ -29,9 +29,12 @@ function createWindow() {
   // drop されたファイルへのナビゲーション等を防ぐ（縦深防御）
   win.webContents.on('will-navigate', (e) => e.preventDefault());
   const mode = process.env.KK_SHOT_MODE;
-  const hash = process.env.KK_SHOT
-    ? (mode === 'pres' ? '#sample-pres' : mode === 'sel' ? '#sample-sel' : '#sample')
-    : '';
+  let hash = '';
+  if (process.env.KK_OPEN) {
+    hash = '#open=' + encodeURIComponent(process.env.KK_OPEN) + (mode ? '&' + mode : '');
+  } else if (process.env.KK_SHOT) {
+    hash = mode === 'pres' ? '#sample-pres' : mode === 'sel' ? '#sample-sel' : '#sample';
+  }
   win.loadFile(path.join(APP_ROOT, 'dist-web', 'index.html'), { hash });
 
   // 検証用スクリーンショット（KK_SHOT=出力パス で起動 → 撮影して終了）
@@ -81,6 +84,10 @@ ipcMain.handle('has-office', () => new Promise((resolve) => {
     '-NoProfile', '-Command',
     "Test-Path 'Registry::HKEY_CLASSES_ROOT\\PowerPoint.Application'",
   ], { timeout: 15000 }, (err, stdout) => {
+    if (process.env.KK_DEBUG) {
+      fs.writeFileSync(path.join(cacheRoot(), 'hasoffice-debug.txt'),
+        `err=${err ? err.message : 'null'}\nstdout=${JSON.stringify(String(stdout))}`);
+    }
     resolve(!err && String(stdout).trim().toLowerCase() === 'true');
   });
 }));
@@ -103,7 +110,9 @@ async function doExportPptx(pptxPath) {
     const outDir = path.join(cacheRoot(), hash8);
     const manifestPath = path.join(outDir, 'manifest.json');
     if (fs.existsSync(manifestPath)) {
-      const m = JSON.parse(await fsp.readFile(manifestPath, 'utf8'));
+      // BOM 付きで書かれた manifest も許容する
+      const raw = (await fsp.readFile(manifestPath, 'utf8')).replace(/^﻿/, '');
+      const m = JSON.parse(raw);
       return { pages: m.pages, dir: outDir };
     }
     await fsp.mkdir(outDir, { recursive: true });

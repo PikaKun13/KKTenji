@@ -3,3 +3,6 @@ dist-web/
 dist/
 *.local
 Thumbs.db
+
+# 実データの deck（機密。公開リポジトリへ入れない）
+test/
