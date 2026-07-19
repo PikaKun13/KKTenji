@@ -26,7 +26,12 @@ function createWindow() {
     },
   });
   win.setMenuBarVisibility(false);
-  const hash = process.env.KK_SHOT ? (process.env.KK_SHOT_MODE === 'pres' ? '#sample-pres' : '#sample') : '';
+  // drop されたファイルへのナビゲーション等を防ぐ（縦深防御）
+  win.webContents.on('will-navigate', (e) => e.preventDefault());
+  const mode = process.env.KK_SHOT_MODE;
+  const hash = process.env.KK_SHOT
+    ? (mode === 'pres' ? '#sample-pres' : mode === 'sel' ? '#sample-sel' : '#sample')
+    : '';
   win.loadFile(path.join(APP_ROOT, 'dist-web', 'index.html'), { hash });
 
   // 検証用スクリーンショット（KK_SHOT=出力パス で起動 → 撮影して終了）
@@ -80,7 +85,17 @@ ipcMain.handle('has-office', () => new Promise((resolve) => {
   });
 }));
 
+const exportInflight = new Map(); // 同一 pptx への多重エクスポート防止
+
 ipcMain.handle('export-pptx', async (_e, pptxPath) => {
+  const key = String(pptxPath);
+  if (exportInflight.has(key)) return exportInflight.get(key);
+  const p = doExportPptx(pptxPath).finally(() => exportInflight.delete(key));
+  exportInflight.set(key, p);
+  return p;
+});
+
+async function doExportPptx(pptxPath) {
   try {
     const abs = resolvePath(pptxPath);
     const buf = await fsp.readFile(abs);
@@ -113,4 +128,4 @@ ipcMain.handle('export-pptx', async (_e, pptxPath) => {
   } catch (e) {
     return { error: e.message };
   }
-});
+}

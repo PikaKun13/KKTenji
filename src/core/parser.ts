@@ -59,9 +59,40 @@ export function parseTenji(jsonText: string): { deck?: ParsedDeck; fatal?: Diagn
     }
   }
 
-  // links
+  // 深さ上限（不可信入力の一本鎖による再帰スタック溢れ防止。超過分はルート直下へ）
+  {
+    const MAX_DEPTH = 64;
+    const depth = new Map<string, number>();
+    for (const n of nodes.values()) {
+      const chain: TenjiNode[] = [];
+      let cur: TenjiNode | undefined = n;
+      while (cur && !depth.has(cur.id)) {
+        chain.push(cur);
+        cur = cur.parent !== null ? nodes.get(cur.parent) : undefined;
+      }
+      let d = cur ? depth.get(cur.id)! : -1;
+      for (let i = chain.length - 1; i >= 0; i--) {
+        d += 1;
+        depth.set(chain[i].id, d);
+      }
+    }
+    let tooDeep = 0;
+    for (const n of nodes.values()) {
+      if ((depth.get(n.id) ?? 0) > MAX_DEPTH) {
+        n.parent = null;
+        tooDeep++;
+      }
+    }
+    if (tooDeep > 0) warn('too-deep', `階層が深すぎる ${tooDeep} 件のノードをルート直下へ移動しました`);
+  }
+
+  // links（双方向は無向キーで正規化。設計書 §4.3）
   const links: TenjiLink[] = [];
   const seen = new Set<string>();
+  const undirKey = (a: string, b: string, type: string) => {
+    const [x, y] = a < b ? [a, b] : [b, a];
+    return `${x}|${y}|${type}|<->`;
+  };
   const rawLinks = Array.isArray(doc.links) ? doc.links : [];
   for (const l of rawLinks) {
     if (!l || !nodes.has(l.from) || !nodes.has(l.to)) {
@@ -76,22 +107,28 @@ export function parseTenji(jsonText: string): { deck?: ParsedDeck; fatal?: Diagn
     if (!LINK_TYPES.includes(l.type)) {
       warn('unknown-type', `未知の関係種別 ${String(l.type)}（中性描画します）`);
     }
-    const key = `${l.from}|${l.to}|${l.type}|${direction}`;
+    const key = direction === '<->'
+      ? undirKey(l.from, l.to, l.type)
+      : `${l.from}|${l.to}|${l.type}|->`;
     if (seen.has(key)) {
       warn('dup-link', `重複 link を除去: ${l.from} → ${l.to}`);
       continue;
     }
-    if (direction === '->') {
-      // 逆向き -> ペアは 1 本の <-> に正規化（設計書 §4.3）
-      const prev = links.find(
-        x => x.from === l.to && x.to === l.from && x.type === l.type && x.direction === '->',
-      );
-      if (prev) {
-        prev.direction = '<->';
-        warn('two-way-merge', `逆向きペアを <-> に統合: ${l.from} ⇄ ${l.to}`);
-        seen.add(key);
-        continue;
-      }
+    const prev = links.find(
+      x => x.type === l.type && x.direction === '->' &&
+        ((x.from === l.to && x.to === l.from) || (direction === '<->' && x.from === l.from && x.to === l.to)),
+    );
+    if (direction === '->' && seen.has(undirKey(l.from, l.to, l.type))) {
+      // 既存の <-> がこのペアを既に覆っている
+      warn('dup-link', `既存の <-> と重複: ${l.from} → ${l.to}`);
+      continue;
+    }
+    if (prev) {
+      // 逆向き -> ペア、または -> と明示 <-> の混在は 1 本の <-> に統合
+      prev.direction = '<->';
+      seen.add(undirKey(l.from, l.to, l.type));
+      warn('two-way-merge', `双方向関係を <-> に統合: ${l.from} ⇄ ${l.to}`);
+      continue;
     }
     seen.add(key);
     links.push({ ...l, direction });

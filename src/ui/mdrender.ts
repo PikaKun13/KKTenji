@@ -22,8 +22,9 @@ export function splitMdPages(md: string, pageBy: 'h2' | 'hr'): string[] {
   return pages;
 }
 
-// file:（electron のローカル画像）と相対パスを許可。http(s) は下の後処理で除去
-const URI_ALLOW = /^(?:(?:file|https?):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i;
+// file:（electron のローカル画像）と相対パスのみ許可。リモート URI は DOMPurify が全属性で剥がす
+// （img/srcset/video/audio/source なども一括で封じる。設計書 §10/§12）
+const URI_ALLOW = /^(?:file:|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i;
 
 /** 1 頁分の md を sanitize 済み DOM に描画する */
 export function renderMd(section: string, baseHref?: string): HTMLElement {
@@ -38,7 +39,8 @@ export function renderMd(section: string, baseHref?: string): HTMLElement {
   // リモート資源は既定で読み込まない（設計書 §10）。file:/相対のみ残す
   div.querySelectorAll('img').forEach(img => {
     const src = img.getAttribute('src') ?? '';
-    if (/^https?:/i.test(src)) { img.remove(); return; }
+    // リモート URI は sanitize 段階で剥がされ src 無しの空 img が残るため、それも除去
+    if (src === '' || /^https?:/i.test(src)) { img.remove(); return; }
     if (baseHref && !/^[a-z]+:/i.test(src)) img.setAttribute('src', baseHref + src);
   });
   // リンクは新窓遷移させない（プレビュー内は表示専用）

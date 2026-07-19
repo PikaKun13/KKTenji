@@ -6,7 +6,7 @@ contextBridge.exposeInMainWorld('kk', {
   openFolderDialog: () => ipcRenderer.invoke('open-folder'),
   readTextFile: (p) => ipcRenderer.invoke('read-file', p),
   listDir: (d) => ipcRenderer.invoke('list-dir', d),
-  exportPptx: (p, o) => ipcRenderer.invoke('export-pptx', p, o),
+  exportPptx: (p) => ipcRenderer.invoke('export-pptx', p),
   getCacheDir: () => ipcRenderer.invoke('cache-dir'),
   hasOffice: () => ipcRenderer.invoke('has-office'),
 });

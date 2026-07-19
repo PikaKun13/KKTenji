@@ -46,6 +46,15 @@ describe('layoutDeck', () => {
     expect(r2.y).toBeGreaterThanOrEqual(r1.y + r1.h);
   });
 
+  it('数千段の一本鎖でも layout がクラッシュしない（深さ上限が効く）', () => {
+    const N = 5000;
+    const nodes = Array.from({ length: N }, (_, i) => ({
+      id: 'n' + i, title: 'N' + i, parent: i === 0 ? null : 'n' + (i - 1), page: i + 1,
+    }));
+    const l = layoutDeck(deckOf(nodes));
+    expect(l.boxes.size).toBe(N);
+  });
+
   it('bounds が全 box を包含する', () => {
     const l = layoutDeck(deckOf(TREE));
     for (const b of l.boxes.values()) {

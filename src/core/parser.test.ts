@@ -144,6 +144,62 @@ describe('parseTenji 異常系（寛容パース・大声報告）', () => {
     expect(r.deck!.diagnostics.some(d => d.code === 'unknown-type')).toBe(true);
   });
 
+  it('逆順の <-> ペアは 1 本に（無向キー正規化）', () => {
+    const r = parseTenji(make({
+      nodes: [
+        { id: 'a', title: 'A', parent: null, page: 1 },
+        { id: 'b', title: 'B', parent: null, page: 2 },
+      ],
+      links: [
+        { from: 'a', to: 'b', type: 'echo', direction: '<->' },
+        { from: 'b', to: 'a', type: 'echo', direction: '<->' },
+      ],
+    }));
+    expect(r.deck!.links).toHaveLength(1);
+    expect(r.deck!.diagnostics.some(d => d.code === 'dup-link')).toBe(true);
+  });
+
+  it('->×2 統合後の明示 <-> も重複扱いで 1 本のまま', () => {
+    const r = parseTenji(make({
+      nodes: [
+        { id: 'a', title: 'A', parent: null, page: 1 },
+        { id: 'b', title: 'B', parent: null, page: 2 },
+      ],
+      links: [
+        { from: 'a', to: 'b', type: 'support', direction: '->' },
+        { from: 'b', to: 'a', type: 'support', direction: '->' },
+        { from: 'a', to: 'b', type: 'support', direction: '<->' },
+      ],
+    }));
+    expect(r.deck!.links).toHaveLength(1);
+    expect(r.deck!.links[0].direction).toBe('<->');
+  });
+
+  it('-> と明示 <-> の混在は <-> 1 本に統合', () => {
+    const r = parseTenji(make({
+      nodes: [
+        { id: 'a', title: 'A', parent: null, page: 1 },
+        { id: 'b', title: 'B', parent: null, page: 2 },
+      ],
+      links: [
+        { from: 'a', to: 'b', type: 'cause', direction: '->' },
+        { from: 'a', to: 'b', type: 'cause', direction: '<->' },
+      ],
+    }));
+    expect(r.deck!.links).toHaveLength(1);
+    expect(r.deck!.links[0].direction).toBe('<->');
+  });
+
+  it('数千段の一本鎖でもクラッシュせず深さ上限で切る', () => {
+    const N = 5000;
+    const nodes = Array.from({ length: N }, (_, i) => ({
+      id: 'n' + i, title: 'N' + i, parent: i === 0 ? null : 'n' + (i - 1), page: i + 1,
+    }));
+    const r = parseTenji(make({ nodes }));
+    expect(r.deck).toBeDefined();
+    expect(r.deck!.diagnostics.some(d => d.code === 'too-deep')).toBe(true);
+  });
+
   it('flow の不明 id は除去 + warn bad-flow-ref', () => {
     const r = parseTenji(make({
       nodes: [{ id: 'a', title: 'A', parent: null, page: 1 }],

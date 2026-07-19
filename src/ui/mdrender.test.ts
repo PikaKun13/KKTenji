@@ -37,6 +37,12 @@ describe('renderMd sanitize', () => {
     expect(imgs).toHaveLength(1);
     expect(imgs[0].getAttribute('src')).toBe('img/a.png');
   });
+  it('video/source などの遠隔 URI も剥がされる', () => {
+    const el = renderMd('<video src="https://evil.example/x.mp4" poster="https://evil.example/p.png"></video>');
+    const v = el.querySelector('video');
+    expect(v?.getAttribute('src')).toBeNull();
+    expect(v?.getAttribute('poster')).toBeNull();
+  });
   it('GFM 表を描画する', () => {
     const el = renderMd('| a | b |\n|---|---|\n| 1 | 2 |');
     expect(el.querySelector('table')).not.toBeNull();

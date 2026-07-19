@@ -90,12 +90,15 @@ class App {
       finishFlight: () => this.camera.finishFlight(),
     });
     this.wireKeyboard();
+    this.wireGlobalDrop();
     this.startLoop();
     // 検証用: #sample で起動されたら sample deck を自動で開く（#sample-pres はプレゼンまで進む）
     if (location.hash.startsWith('#sample')) {
       void this.openByPath('sample/deck.tenji.json').then(() => {
         if (location.hash === '#sample-pres') {
           setTimeout(() => this.presenter.enter(), 800);
+        } else if (location.hash === '#sample-sel') {
+          setTimeout(() => this.openNode('kadai'), 800);
         }
       });
     }
@@ -184,12 +187,16 @@ class App {
       b.addEventListener('click', fn);
       zp.appendChild(b);
     };
-    zbtn('−', () => { this.camera.target.s = Math.max(0.15, this.camera.target.s / 1.25); });
+    const zoomCenter = (f: number) => {
+      const v = this.viewSize();
+      this.camera.zoomAt(v.w / 2, v.h / 2, f);
+    };
+    zbtn('−', () => zoomCenter(1 / 1.25));
     this.zPct = document.createElement('span');
     this.zPct.className = 'pct';
     this.zPct.textContent = '100%';
     zp.appendChild(this.zPct);
-    zbtn('＋', () => { this.camera.target.s = Math.min(3, this.camera.target.s * 1.25); });
+    zbtn('＋', () => zoomCenter(1.25));
     zbtn('フィット', () => this.fitAll(DUR.fit));
     this.canvasWrap.appendChild(zp);
   }
@@ -229,16 +236,17 @@ class App {
       await this.openByPath(this.shell.join(dir, sidecars[0]));
       return;
     }
-    // 複数 deck: welcome を簡易一覧に
+    // 複数 deck: welcome を簡易一覧に（前回の一覧は除去）
     this.welcome.show();
+    this.welcome.el.querySelector('.deck-list')?.remove();
     const list = document.createElement('div');
-    list.className = 'actions';
+    list.className = 'actions deck-list';
     list.style.flexDirection = 'column';
     for (const f of sidecars) {
       const b = document.createElement('button');
       b.className = 'wbtn';
       b.textContent = f.replace(/\.tenji\.json$/, '');
-      b.addEventListener('click', () => { list.remove(); this.openByPath(this.shell.join(dir, f)); });
+      b.addEventListener('click', () => { list.remove(); void this.openByPath(this.shell.join(dir, f)); });
       list.appendChild(b);
     }
     this.welcome.el.appendChild(list);
@@ -341,7 +349,7 @@ class App {
       this.officeOk = await this.shell.hasOffice();
       if (this.officeOk) {
         const abs = this.shell.join(this.deckDir, src.path);
-        const res = await this.shell.exportPptx(abs, '');
+        const res = await this.shell.exportPptx(abs);
         if (res.dir) this.pngDir = res.dir;
         else if (res.error && res.error !== 'NO_OFFICE') {
           diagnostics = [...diagnostics, {
@@ -473,9 +481,10 @@ class App {
     if (srcType === 'md') {
       const section = this.mdPages[n.page - 1];
       if (section !== undefined) {
+        const dirIsAbs = /^[A-Za-z]:|^[\\/]{2}/.test(this.deckDir);
         const baseHref = this.shell.kind === 'browser'
           ? '/' + this.deckDir.replace(/\\/g, '/') + '/'
-          : this.shell.fileUrl(this.deckDir) + '/';
+          : dirIsAbs ? this.shell.fileUrl(this.deckDir) + '/' : undefined;
         el = renderMd(section, baseHref);
         sourceLabel = 'md レンダリング';
         note = 'ソース md を整形描画しています。Esc で戻る。';
@@ -535,10 +544,21 @@ class App {
     else root.dataset.theme = this.themeMode;
   }
 
+  /** 全窓 drag&drop（設計書 §6.9）。既定のファイルナビゲーションも防ぐ */
+  wireGlobalDrop(): void {
+    window.addEventListener('dragover', e => e.preventDefault());
+    window.addEventListener('drop', e => {
+      e.preventDefault();
+      const f = e.dataTransfer?.files?.[0] as (File & { path?: string }) | undefined;
+      if (f?.path) void this.openByPath(f.path);
+    });
+  }
+
   wireKeyboard(): void {
     document.addEventListener('keydown', e => {
       if (e.key === 'F5') { e.preventDefault(); if (!this.presenter.active) this.presenter.enter(); return; }
       if (this.presenter.handleKey(e)) { e.preventDefault(); return; }
+      if (this.presenter.active) return; // 以下は通常モード専用（設計書 §7）
       if (e.ctrlKey && e.key.toLowerCase() === 'o') {
         e.preventDefault();
         if (e.shiftKey) this.openFolderFlow(); else this.openFileFlow();

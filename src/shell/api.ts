@@ -7,7 +7,7 @@ export interface ShellApi {
   openFolderDialog(): Promise<string | null>;
   readTextFile(path: string): Promise<string>;
   listDir(dir: string): Promise<string[]>;
-  exportPptx(pptxPath: string, outDir: string): Promise<ExportResult>;
+  exportPptx(pptxPath: string): Promise<ExportResult>;
   getCacheDir(): Promise<string>;
   fileUrl(path: string): string;
   hasOffice(): Promise<boolean>;

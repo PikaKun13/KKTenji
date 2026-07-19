@@ -6,7 +6,7 @@ interface KkBridge {
   openFolderDialog(): Promise<string | null>;
   readTextFile(path: string): Promise<string>;
   listDir(dir: string): Promise<string[]>;
-  exportPptx(pptxPath: string, outDir: string): Promise<ExportResult>;
+  exportPptx(pptxPath: string): Promise<ExportResult>;
   getCacheDir(): Promise<string>;
   hasOffice(): Promise<boolean>;
 }
@@ -19,7 +19,7 @@ export function electronShell(): ShellApi {
     openFolderDialog: () => kk.openFolderDialog(),
     readTextFile: p => kk.readTextFile(p),
     listDir: d => kk.listDir(d),
-    exportPptx: (p, o) => kk.exportPptx(p, o),
+    exportPptx: p => kk.exportPptx(p),
     getCacheDir: () => kk.getCacheDir(),
     hasOffice: () => kk.hasOffice(),
     fileUrl(path: string) {
