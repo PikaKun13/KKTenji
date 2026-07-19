@@ -14,6 +14,25 @@
     "electron": "npm run build && electron .",
     "dist": "npm run build && electron-builder --win nsis"
   },
+  "build": {
+    "appId": "jp.kktenji.app",
+    "productName": "KKTenji",
+    "directories": { "output": "dist" },
+    "files": [
+      "dist-web/**",
+      "electron/**",
+      "scripts/**",
+      "sample/**",
+      "package.json"
+    ],
+    "win": { "target": "nsis" },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "KKTenji-Setup-${version}.${ext}"
+    }
+  },
   "dependencies": {
     "dompurify": "^3.2.4",
     "marked": "^15.0.7"

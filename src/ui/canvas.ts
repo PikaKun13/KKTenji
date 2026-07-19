@@ -75,15 +75,15 @@ export function renderCanvas(
   ];
   for (const [t, d, fill] of markerDefs) {
     const m = el('marker', {
-      id: `arr-${t}`, markerWidth: 9, markerHeight: 9, refX: 7, refY: 4.5,
-      orient: 'auto-start-reverse',
+      id: `arr-${t}`, markerWidth: 10, markerHeight: 10, refX: 7, refY: 4.5,
+      orient: 'auto-start-reverse', markerUnits: 'userSpaceOnUse',
     }, defs);
     el('path', { d, class: fill ? `m-${t}` : '' }, m);
   }
   { // echo は開き V（線描き）
     const m = el('marker', {
-      id: 'arr-echo', markerWidth: 9, markerHeight: 9, refX: 6.5, refY: 4.5,
-      orient: 'auto-start-reverse',
+      id: 'arr-echo', markerWidth: 10, markerHeight: 10, refX: 6.5, refY: 4.5,
+      orient: 'auto-start-reverse', markerUnits: 'userSpaceOnUse',
     }, defs);
     const p = el('path', { d: 'M0.5,1 L7,4.5 L0.5,8', fill: 'none', 'stroke-width': 1.6 }, m);
     p.setAttribute('stroke', 'var(--lk-echo)');
@@ -178,8 +178,9 @@ export function renderCanvas(
     tip.textContent = n.title;
     g.appendChild(tip);
     if (tier === 0) {
+      const pageCount = [...deck.nodes.values()].filter(x => x.page !== null).length;
       const st = el('text', { class: 'pg', x: 16, y: b.h / 2 + 20 }, g);
-      st.textContent = deck.doc.title ? truncate(String(deck.doc.title), 20) : '';
+      st.textContent = `全 ${pageCount} ページ`;
     } else if (n.page !== null) {
       const pt = el('text', { class: 'pg', x: b.w - 12, y: b.h - 10, 'text-anchor': 'end' }, g);
       pt.textContent = 'P' + n.page;

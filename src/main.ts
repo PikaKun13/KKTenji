@@ -91,6 +91,14 @@ class App {
     });
     this.wireKeyboard();
     this.startLoop();
+    // 検証用: #sample で起動されたら sample deck を自動で開く（#sample-pres はプレゼンまで進む）
+    if (location.hash.startsWith('#sample')) {
+      void this.openByPath('sample/deck.tenji.json').then(() => {
+        if (location.hash === '#sample-pres') {
+          setTimeout(() => this.presenter.enter(), 800);
+        }
+      });
+    }
   }
 
   viewSize(): { w: number; h: number } {
