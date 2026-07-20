@@ -13,8 +13,8 @@ export interface ShellApi {
   hasOffice(): Promise<boolean>;
   dirname(path: string): string;
   join(...parts: string[]): string;
-  /** pptx→PNG の増分進捗（electron のみ） */
-  onExportProgress?(cb: (p: { i: number; n: number }) => void): void;
+  /** pptx→PNG の増分進捗（electron のみ）。path は書き出し中の pptx */
+  onExportProgress?(cb: (p: { i: number; n: number; path?: string }) => void): void;
   /** 右クリック/関連付け/二重起動から渡されたパス（electron のみ） */
   onOpenPath?(cb: (path: string) => void): void;
   /** ドロップされた File の実パス（electron のみ。取得不能なら null） */
@@ -27,6 +27,8 @@ export interface ShellApi {
   appVersion?(): Promise<string>;
   cacheStats?(): Promise<{ bytes: number; decks: number }>;
   clearCache?(): Promise<void>;
+  /** 新しいウィンドウを開く（electron のみ。多開） */
+  newWindow?(): Promise<void>;
 }
 
 export interface RecentEntry { path: string; title: string; ts: number; }

@@ -26,4 +26,5 @@ contextBridge.exposeInMainWorld('kk', {
   appVersion: () => ipcRenderer.invoke('app-version'),
   cacheStats: () => ipcRenderer.invoke('cache-stats'),
   clearCache: () => ipcRenderer.invoke('clear-cache'),
+  newWindow: () => ipcRenderer.invoke('new-window'),
 });

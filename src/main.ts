@@ -57,6 +57,7 @@ class App {
   pngDir = '';
   officeOk: boolean | null = null; // null = 確認中
   exporting = false;
+  exportingPath = ''; // この窓が待っている pptx（他窓の進捗と区別する）
   themeMode: 'auto' | 'light' | 'dark' = 'auto';
   help!: HelpView;
   deckButtons: HTMLButtonElement[] = [];
@@ -147,7 +148,9 @@ class App {
     this.exportPill.className = 'exportpill hidden';
     this.canvasWrap.appendChild(this.exportPill);
     this.shell.onExportProgress?.(p => {
-      if (!this.exporting) return; // 別 deck へ切替済みの旧エクスポート進捗は無視
+      // 別 deck へ切替済み / 他の窓が走らせている書き出しの進捗は表示しない
+      if (!this.exporting) return;
+      if (p.path && this.exportingPath && p.path !== this.exportingPath) return;
       this.exportPill.textContent = `ページ画像を生成中… ${p.i} / ${p.n}`;
       this.exportPill.classList.remove('hidden');
     });
@@ -165,6 +168,10 @@ class App {
           setTimeout(() => this.presenter.enter(), 800);
         } else if (location.hash === '#sample-sel') {
           setTimeout(() => this.openNode('kadai'), 800);
+        } else if (location.hash === '#sample-close') {
+          // 検証: 実際のキー経路（Ctrl+W）で閉じられることを確かめる
+          setTimeout(() => document.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'w', ctrlKey: true, bubbles: true })), 1200);
         }
       });
     } else if (location.hash.startsWith('#open=')) {
@@ -228,6 +235,8 @@ class App {
     };
     btn('開く', '', () => this.openFileFlow());
     btn('フォルダ', '', () => this.openFolderFlow());
+    this.deckButtons.push(btn('閉じる', '', () => this.closeDeck()));
+    if (this.shell.newWindow) btn('新しい窓', '', () => { void this.shell.newWindow?.(); });
     sep();
     this.deckButtons.push(btn('検索', '', () => this.searchInput.focus()));
     this.deckButtons.push(btn('フィット', '', () => this.fitAll(DUR.fit)));
@@ -537,9 +546,13 @@ class App {
         'ヘルプ「deck の作り方」の手順で .tenji.json を作ると開けます', 'no-sidecar');
       return;
     }
+    this.exporting = true;
+    this.exportingPath = pptxPath;
     this.exportPill.textContent = 'ページ画像を生成しています…';
     this.exportPill.classList.remove('hidden');
     const res = await this.shell.exportPptx(pptxPath);
+    this.exporting = false;
+    this.exportingPath = '';
     this.exportPill.classList.add('hidden');
     if (!res.pages || !res.dir) {
       this.showOpenError(`ページ画像の生成に失敗しました: ${this.exportErrText(res.error)}`, 'export-failed');
@@ -612,6 +625,8 @@ class App {
           level: 'warn', code: 'source-missing', message: `ソースが見つかりません: ${src.path}`,
         }];
       }
+      // await 中に閉じられた/別 deck に切り替わったら以降の描画はしない
+      if (this.deck !== deck) return;
     } else if (src?.type === 'pptx') {
       const abs = this.shell.join(this.deckDir, src.path);
       if (this.preExport && this.preExport.abs === abs) {
@@ -674,6 +689,8 @@ class App {
     const b = document.createElement('b');
     b.textContent = String(deck.doc.title ?? 'deck');
     this.docTitleEl.append(b, ' — KKTenji');
+    // 多窓時にタスクバー/Alt+Tab で見分けられるよう窓の題名も deck 名に
+    document.title = `${String(deck.doc.title ?? 'deck')} — KKTenji`;
     this.stNodes.textContent = `ノード ${deck.nodes.size} ・ リンク ${deck.links.length}`;
     const SRC_LABEL: Record<string, string> = { md: 'Markdown', pptx: 'PowerPoint' };
     this.stSource.textContent = `ソース: ${SRC_LABEL[src?.type ?? ''] ?? '構造のみ'}`;
@@ -688,11 +705,13 @@ class App {
   /** pptx→PNG 書き出しを背景で開始する（mountDeck から Office 検出後に呼ばれる） */
   private startPptxExport(abs: string, myDeck: ParsedDeck): void {
     this.exporting = true;
+    this.exportingPath = abs;
     this.exportPill.textContent = 'ページ画像を準備中…';
     this.exportPill.classList.remove('hidden');
     void this.shell.exportPptx(abs).then(res => {
       if (this.deck !== myDeck) return; // 既に別 deck へ切替済み
       this.exporting = false;
+      this.exportingPath = '';
       this.exportPill.classList.add('hidden');
       if (res.dir) {
         this.pngDir = res.dir;
@@ -841,6 +860,50 @@ class App {
     return parts.join(' › ');
   }
 
+  /** 現在の deck を閉じて Welcome に戻る（別の deck を開き直せるように） */
+  closeDeck(): void {
+    if (!this.deck) return;
+    if (this.presenter.active) this.presenter.exit();
+    this.help.close();
+    this.preview.close();
+    this.clearSearch();
+    this.view?.destroy();
+    this.view = undefined;
+    this.outline?.destroy();
+    this.outline = undefined;
+    this.inspector?.el.remove();
+    this.inspector = undefined;
+    this.minimap?.el.remove();
+    this.minimap = undefined;
+    this.legendEl?.remove();
+    this.legendEl = undefined;
+    this.deck = undefined;
+    this.layout = undefined;
+    this.selected = null;
+    this.mdPages = [];
+    this.pngDir = '';
+    this.deckDir = '';
+    this.deckPath = '';
+    this.preExport = null;
+    this.exporting = false;
+    this.exportingPath = '';
+    this.exportPill.classList.add('hidden');
+    this.officeOk = null;
+    this.currentDiags = [];
+    this.diags.set([]);
+    this.docTitleEl.textContent = 'KKTenji';
+    document.title = 'KKTenji';
+    this.stNodes.textContent = '';
+    this.stSource.textContent = '';
+    this.stZoom.textContent = '';
+    this.stPath.textContent = '選択: なし';
+    for (const b of this.deckButtons) b.disabled = true;
+    this.welcome.el.querySelector('.deck-list')?.remove();
+    this.welcome.setNotice(null);
+    this.welcome.show();
+    void this.refreshRecent();
+  }
+
   fitAll(dur: number, pad = 60): void {
     if (!this.layout) return;
     this.camera.flyTo(this.camera.fitCam(this.layout.bounds, pad), dur);
@@ -909,6 +972,16 @@ class App {
       if (e.ctrlKey && e.key.toLowerCase() === 'o') {
         e.preventDefault();
         if (e.shiftKey) this.openFolderFlow(); else this.openFileFlow();
+        return;
+      }
+      if (e.ctrlKey && e.key.toLowerCase() === 'n' && this.shell.newWindow) {
+        e.preventDefault();
+        void this.shell.newWindow();
+        return;
+      }
+      if (e.ctrlKey && e.key.toLowerCase() === 'w') {
+        e.preventDefault();
+        this.closeDeck(); // deck を閉じて Welcome へ（窓自体は閉じない）
         return;
       }
       if (e.key === 'Escape') {

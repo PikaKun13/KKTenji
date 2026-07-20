@@ -10,7 +10,7 @@ interface KkBridge {
   exportPptx(pptxPath: string): Promise<ExportResult>;
   getCacheDir(): Promise<string>;
   hasOffice(): Promise<boolean>;
-  onExportProgress(cb: (p: { i: number; n: number }) => void): void;
+  onExportProgress(cb: (p: { i: number; n: number; path?: string }) => void): void;
   onOpenPath(cb: (path: string) => void): void;
   pathForFile(f: File): Promise<string | null>;
   listRecent(): Promise<RecentEntry[]>;
@@ -19,6 +19,7 @@ interface KkBridge {
   appVersion(): Promise<string>;
   cacheStats(): Promise<{ bytes: number; decks: number }>;
   clearCache(): Promise<void>;
+  newWindow(): Promise<void>;
 }
 
 export function electronShell(): ShellApi {
@@ -49,5 +50,6 @@ export function electronShell(): ShellApi {
     appVersion: () => kk.appVersion(),
     cacheStats: () => kk.cacheStats(),
     clearCache: () => kk.clearCache(),
+    newWindow: () => kk.newWindow(),
   };
 }

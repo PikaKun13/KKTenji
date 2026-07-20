@@ -3,6 +3,7 @@ import { PROMPT_TEMPLATE } from './promptTemplate';
 
 const KEYS_NORMAL: Array<[string, string]> = [
   ['Ctrl+O / Ctrl+Shift+O', 'ファイル / フォルダを開く'],
+  ['Ctrl+W ・ Ctrl+N', 'deck を閉じる（Welcome へ）・ 新しい窓'],
   ['Ctrl+F ・ Enter/F3', '検索 ・ 次のヒットへ（Shift で逆）'],
   ['F', '全体フィット'],
   ['Enter', '選択ノードのプレビュー'],

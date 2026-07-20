@@ -1,5 +1,5 @@
 // Electron main（設計書 §2/§9/§12。contextIsolation + 最小 IPC）
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, dialog } = require('electron');
 const path = require('node:path');
 const fsp = require('node:fs/promises');
 const fs = require('node:fs');
@@ -10,8 +10,11 @@ const { execFile, spawn } = require('node:child_process');
 function pathFromArgv(argv) {
   for (const a of argv.slice(1)) {
     if (a.startsWith('-')) continue;
+    if (a === '.' || a === './') continue; // `electron .` の起動引数（アプリ自身）は deck ではない
     if (/\.(tenji\.json|tenji|json|pptx|md)$/i.test(a)) return a;
-    try { if (fs.statSync(a).isDirectory()) return a; } catch { /* ignore */ }
+    try {
+      if (fs.statSync(a).isDirectory() && path.resolve(a) !== path.resolve(APP_ROOT)) return a;
+    } catch { /* ignore */ }
   }
   return null;
 }
@@ -117,8 +120,13 @@ async function saveRecent(list) {
 
 let win = null;
 
-function createWindow() {
-  win = new BrowserWindow({
+/**
+ * ウィンドウ生成（複数窓対応）。openPath があればその deck を開いて起動する。
+ * 環境変数による検証フック（KK_SHOT/KK_OPEN）は最初の 1 窓のみが解釈する。
+ */
+let firstWindowCreated = false;
+function createWindow(openPath = null) {
+  const w = new BrowserWindow({
     width: 1440,
     height: 900,
     backgroundColor: '#202020',
@@ -130,41 +138,52 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
-  win.setMenuBarVisibility(false);
+  win = w; // 直近に作った窓（後方互換の参照用）
+  w.setMenuBarVisibility(false);
   // drop されたファイルへのナビゲーション等を防ぐ（縦深防御）
-  win.webContents.on('will-navigate', (e) => e.preventDefault());
-  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  w.webContents.on('will-navigate', (e) => e.preventDefault());
+  w.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   // レンダラの error レベルは常に障害ログへ（現地障害の切り分け用）
-  win.webContents.on('console-message', (_e, lv, msg) => {
+  w.webContents.on('console-message', (_e, lv, msg) => {
     if (lv >= 3) logError('renderer', msg);
     if (process.env.KK_DEBUG) {
       require('node:fs').appendFileSync(
         path.join(cacheRoot(), 'console-debug.txt'), msg + '\n');
     }
   });
-  win.webContents.on('render-process-gone', (_e, details) =>
+  w.webContents.on('render-process-gone', (_e, details) =>
     logError('renderer-gone', JSON.stringify(details)));
-  const mode = process.env.KK_SHOT_MODE;
-  let hash = '';
-  const argvPath = pathFromArgv(process.argv);
-  grantPath(argvPath);
-  grantPath(process.env.KK_OPEN);
-  if (process.env.KK_OPEN) {
-    hash = '#open=' + encodeURIComponent(process.env.KK_OPEN) + (mode ? '&' + mode : '');
-  } else if (process.env.KK_SHOT) {
-    hash = mode === 'pres' ? '#sample-pres' : mode === 'sel' ? '#sample-sel'
-      : mode === 'help' ? '#help' : mode === 'help-sys' ? '#help-sys' : '#sample';
-  } else if (argvPath) {
-    hash = '#open=' + encodeURIComponent(argvPath);
-  }
-  win.loadFile(path.join(APP_ROOT, 'dist-web', 'index.html'), { hash });
 
-  // 検証用スクリーンショット（KK_SHOT=出力パス で起動 → 撮影して終了）
-  if (process.env.KK_SHOT) {
-    win.webContents.on('did-finish-load', () => {
+  let hash = '';
+  let isShotWindow = false;
+  if (!firstWindowCreated) {
+    firstWindowCreated = true;
+    isShotWindow = true;
+    const mode = process.env.KK_SHOT_MODE;
+    const argvPath = openPath ?? pathFromArgv(process.argv);
+    grantPath(argvPath);
+    grantPath(process.env.KK_OPEN);
+    if (process.env.KK_OPEN) {
+      hash = '#open=' + encodeURIComponent(process.env.KK_OPEN) + (mode ? '&' + mode : '');
+    } else if (process.env.KK_SHOT) {
+      hash = mode === 'pres' ? '#sample-pres' : mode === 'sel' ? '#sample-sel'
+        : mode === 'help' ? '#help' : mode === 'help-sys' ? '#help-sys'
+        : mode === 'close' ? '#sample-close' : '#sample';
+    } else if (argvPath) {
+      hash = '#open=' + encodeURIComponent(argvPath);
+    }
+  } else if (openPath) {
+    grantPath(openPath);
+    hash = '#open=' + encodeURIComponent(openPath);
+  }
+  w.loadFile(path.join(APP_ROOT, 'dist-web', 'index.html'), { hash });
+
+  // 検証用スクリーンショット（KK_SHOT=出力パス で起動 → 撮影して終了。最初の窓のみ）
+  if (process.env.KK_SHOT && isShotWindow) {
+    w.webContents.on('did-finish-load', () => {
       setTimeout(async () => {
         try {
-          const img = await win.webContents.capturePage();
+          const img = await w.webContents.capturePage();
           await fsp.writeFile(process.env.KK_SHOT, img.toPNG());
         } finally {
           app.quit();
@@ -172,9 +191,11 @@ function createWindow() {
       }, Number(process.env.KK_SHOT_DELAY || 4000));
     });
   }
+  return w;
 }
 
-// 単一インスタンス: 2 回目の起動はパスを既存窓へ渡す
+// 単一インスタンス（メインプロセスは 1 つ）+ 複数ウィンドウ:
+// 2 回目以降の起動・右クリック「KKTenji で開く」は既存プロセス内で新しい窓を開く。
 // （KK_SHOT/KK_OPEN の検証起動はロックに参加しない = 実行中のアプリと共存）
 const isVerifyRun = !!(process.env.KK_SHOT || process.env.KK_OPEN);
 const gotLock = isVerifyRun ? true : app.requestSingleInstanceLock();
@@ -182,21 +203,25 @@ if (!gotLock) {
   app.quit();
 } else {
   app.on('second-instance', (_e, argv) => {
-    if (!win) return;
-    if (win.isMinimized()) win.restore();
-    win.focus();
-    const p = pathFromArgv(argv);
-    if (p) { grantPath(p); win.webContents.send('open-path', p); }
+    createWindow(pathFromArgv(argv)); // 多開: 既存窓を奪わず新窓で開く
   });
   app.whenReady().then(() => {
+    // 既定メニューを外す: Ctrl+W(close)/Ctrl+R(reload) 等の accelerator が
+    // アプリのキー操作を横取りし、プレゼン中の Ctrl+W で窓ごと閉じてしまうため
+    Menu.setApplicationMenu(null);
     createWindow();
     setTimeout(() => { void sweepCache(); }, 8000); // 起動を阻害しないよう遅延して LRU 掃除
   });
 }
 app.on('window-all-closed', () => app.quit());
 
-ipcMain.handle('open-file', async () => {
-  const r = await dialog.showOpenDialog(win, {
+ipcMain.handle('new-window', (e) => {
+  createWindow(null);
+});
+
+ipcMain.handle('open-file', async (e) => {
+  const parent = BrowserWindow.fromWebContents(e.sender) ?? win;
+  const r = await dialog.showOpenDialog(parent, {
     properties: ['openFile'],
     filters: [
       { name: 'KKTenji deck', extensions: ['json', 'md', 'pptx'] },
@@ -208,8 +233,9 @@ ipcMain.handle('open-file', async () => {
   return r.filePaths[0];
 });
 
-ipcMain.handle('open-folder', async () => {
-  const r = await dialog.showOpenDialog(win, { properties: ['openDirectory'] });
+ipcMain.handle('open-folder', async (e) => {
+  const parent = BrowserWindow.fromWebContents(e.sender) ?? win;
+  const r = await dialog.showOpenDialog(parent, { properties: ['openDirectory'] });
   if (r.canceled) return null;
   grantPath(r.filePaths[0]);
   return r.filePaths[0];
@@ -267,11 +293,16 @@ ipcMain.handle('has-office', () => new Promise((resolve) => {
 }));
 
 const exportInflight = new Map(); // 同一 pptx への多重エクスポート防止
+// PowerPoint COM は単一インスタンスなので、別 pptx でも同時に走らせない
+// （先に終わった側の Quit が後続の書き出しを殺すため）。全窓分を一本の鎖に直列化する。
+let exportChain = Promise.resolve();
 
 ipcMain.handle('export-pptx', async (_e, pptxPath) => {
   const key = String(pptxPath);
   if (exportInflight.has(key)) return exportInflight.get(key);
-  const p = doExportPptx(pptxPath).finally(() => exportInflight.delete(key));
+  const run = exportChain.then(() => doExportPptx(pptxPath), () => doExportPptx(pptxPath));
+  exportChain = run.then(() => undefined, () => undefined);
+  const p = run.finally(() => exportInflight.delete(key));
   exportInflight.set(key, p);
   return p;
 });
@@ -311,8 +342,13 @@ async function doExportPptx(pptxPath) {
         const s = String(d);
         out += s;
         const m = s.match(/PAGE (\d+)\/(\d+)/);
-        if (m && win && !win.isDestroyed()) {
-          win.webContents.send('export-progress', { i: Number(m[1]), n: Number(m[2]) });
+        if (m) {
+          // 全窓へ配信。どの pptx の進捗かを添え、renderer は自分が待っている
+          // 書き出しのときだけ表示する（多窓で進捗が混線しないように）
+          const payload = { i: Number(m[1]), n: Number(m[2]), path: String(pptxPath) };
+          for (const bw of BrowserWindow.getAllWindows()) {
+            if (!bw.isDestroyed()) bw.webContents.send('export-progress', payload);
+          }
         }
       });
       ps.on('error', (e) => {

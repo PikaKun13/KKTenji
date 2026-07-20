@@ -66,6 +66,23 @@
 - 対抗レビュー（2 視点 → 逐条検証、agent 13 体）: 確認 3 件（更新時データ消去 high /
   clear-cache と進行中 export の競合 low）全修正、誤報 8 件棄却
 
+## 2026-07-20 夕: 多窓 + deck クローズ（Vitest 53 green・インストーラ 16:47 再ビルド）
+
+- **多窓**: メインプロセスは単一のまま複数ウィンドウ化。再起動・右クリック「KKTenji で開く」は
+  既存窓を奪わず**新しい窓**で開く（`createWindow(openPath)`、second-instance → 新窓）。
+  コマンドバー「新しい窓」/ Ctrl+N。窓題名を deck 名にしてタスクバーで識別可能に
+- **deck を閉じる**: 「閉じる」ボタン / Ctrl+W で Welcome に戻り、同じ窓で別 deck を開ける
+- **既定メニュー除去必須**（`Menu.setApplicationMenu(null)`）: 隠しただけでは Ctrl+W(close) /
+  Ctrl+R(reload) の accelerator が生きており、プレゼン中の Ctrl+W で**窓ごと閉じる**（対抗レビュー high）
+- **export の直列化**: PowerPoint COM は単一インスタンスのため、別 pptx でも同時実行すると
+  先に終わった側の Quit が後続を殺す → 全窓分を 1 本の promise 鎖に直列化。
+  進捗 IPC に pptx パスを載せ、窓ごとに自分のジョブのみ表示
+- `pathFromArgv` が `.`/APP_ROOT を deck と誤認しないよう除外（dev 起動時の誤爆）
+- 対抗レビュー（2 視点 → 逐条検証、agent 16 体）: 確認 5 件全修正、誤報 9 件棄却
+- 検証: 実機 2 窓同時起動で各窓が別 deck を表示（EnumWindows で確認）/ Ctrl+W → Welcome 復帰を
+  スクリーンショット確認（キー経路を実際に dispatch）。**注意: PowerShell SendKeys 経由の
+  キー注入は AppActivate のフォーカス取得が不安定で検証手段として当てにならない**
+
 ## 次の一手（優先順）
 
 1. 機能繰り越し: モーション速度スライダー + 設定画面 / 演讲者ダブルスクリーン /
