@@ -215,3 +215,18 @@ describe('parseTenji 異常系（寛容パース・大声報告）', () => {
     expect(r.deck!.diagnostics.some(d => d.code === 'empty')).toBe(true);
   });
 });
+
+describe('parseTenji title 検査', () => {
+  it('title 欠落は仮題「（無題）」+ warn no-title', () => {
+    const r = parseTenji(make({ nodes: [{ id: 'a' }, { id: 'b', title: '  ' }] }));
+    expect(r.deck!.nodes.get('a')!.title).toBe('（無題）');
+    expect(r.deck!.nodes.get('b')!.title).toBe('（無題）');
+    expect(r.deck!.diagnostics.filter(d => d.code === 'no-title')).toHaveLength(2);
+  });
+
+  it('正常な title はそのまま', () => {
+    const r = parseTenji(make({ nodes: [{ id: 'a', title: '課題' }] }));
+    expect(r.deck!.nodes.get('a')!.title).toBe('課題');
+    expect(r.deck!.diagnostics.filter(d => d.code === 'no-title')).toHaveLength(0);
+  });
+});

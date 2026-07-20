@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/PikaKun13/KKTenji/main/schema/tenji-v1.schema.json",
+  "title": "KKTenji tenji.json v1",
+  "description": "deck (pptx/md) の思維関係図を定義する sidecar。KKTenji は寛容パースするため schema 違反でも開けるが、生成時はこの schema への適合を推奨する。",
+  "type": "object",
+  "required": ["version", "title", "nodes"],
+  "properties": {
+    "version": { "const": 1 },
+    "deckId": { "type": "string" },
+    "title": { "type": "string", "minLength": 1, "description": "deck 全体のタイトル" },
+    "source": {
+      "type": "object",
+      "required": ["type", "path"],
+      "properties": {
+        "type": { "enum": ["pptx", "md"] },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!.*\\.\\.)[^\\\\/].*$",
+          "description": "sidecar と同じフォルダにあるコンテンツファイル名（パス区切り・.. は不可）"
+        },
+        "pageBy": { "enum": ["h2", "hr"], "description": "md のページ区切り（既定 h2）" }
+      },
+      "additionalProperties": true
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/node" }
+    },
+    "links": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/link" }
+    },
+    "flow": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "プレゼンで停止する頁ノード id を頁順に並べる（page を持たない章ノードは入れない）"
+    }
+  },
+  "definitions": {
+    "node": {
+      "type": "object",
+      "required": ["id", "title"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9_-]+$" },
+        "title": { "type": "string", "minLength": 1 },
+        "parent": { "type": ["string", "null"], "description": "親ノード id。ルートは null" },
+        "page": { "type": ["integer", "null"], "minimum": 1, "description": "対応する頁番号（1 始まり）。章など構造ノードは null" },
+        "summary": { "type": "string" },
+        "notes": { "type": "string" },
+        "anchor": { "type": ["string", "null"] },
+        "contentHash": { "type": "string", "description": "頁内容の sha1 先頭 8 桁（任意。変更検知用）" }
+      },
+      "additionalProperties": true
+    },
+    "link": {
+      "type": "object",
+      "required": ["from", "to", "type"],
+      "properties": {
+        "from": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["support", "echo", "contrast", "cause"] },
+        "direction": { "enum": ["->", "<->"], "default": "->" },
+        "label": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  }
+}

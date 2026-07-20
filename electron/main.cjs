@@ -21,6 +21,51 @@ const resolvePath = (p) => (path.isAbsolute(p) ? p : path.join(APP_ROOT, p));
 const cacheRoot = () =>
   path.join(process.env.LOCALAPPDATA || app.getPath('userData'), 'KKTenji', 'cache');
 
+// System32 のフルパスで PowerShell を起動する（CWD/PATH 経由の差し替えを防ぐ）
+const POWERSHELL = path.join(
+  process.env.SystemRoot || 'C:\\Windows',
+  'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+
+// ── IPC パス白名单（設計書 §12）──
+// read-file/list-dir/export-pptx はユーザーが明示的に開いた場所（ダイアログ/argv/
+// ドロップ/履歴）+ 同梱資源 + キャッシュのみ読める。悪意 sidecar の ../ 遡上を遮断する。
+const grantedRoots = new Set();
+const normRoot = (p) => {
+  const r = path.resolve(p).toLowerCase();
+  return r.endsWith(path.sep) ? r : r + path.sep;
+};
+function grantPath(p) {
+  if (!p || typeof p !== 'string') return;
+  try {
+    const st = fs.statSync(p);
+    grantedRoots.add(normRoot(st.isDirectory() ? p : path.dirname(p)));
+  } catch {
+    grantedRoots.add(normRoot(path.dirname(p)));
+  }
+}
+grantedRoots.add(normRoot(APP_ROOT));
+grantedRoots.add(normRoot(cacheRoot()));
+function guardPath(p) {
+  const abs = resolvePath(String(p));
+  const key = normRoot(abs);
+  for (const root of grantedRoots) {
+    if (key.startsWith(root)) return abs;
+  }
+  throw new Error('PATH_DENIED');
+}
+
+// ── 最近開いた deck（userData/recent.json。パスは白名单通過済みのもののみ）──
+const recentFile = () => path.join(app.getPath('userData'), 'recent.json');
+async function loadRecent() {
+  try {
+    const arr = JSON.parse(await fsp.readFile(recentFile(), 'utf8'));
+    return Array.isArray(arr) ? arr.filter(e => e && typeof e.path === 'string') : [];
+  } catch { return []; }
+}
+async function saveRecent(list) {
+  try { await fsp.writeFile(recentFile(), JSON.stringify(list)); } catch { /* ignore */ }
+}
+
 let win = null;
 
 function createWindow() {
@@ -39,6 +84,7 @@ function createWindow() {
   win.setMenuBarVisibility(false);
   // drop されたファイルへのナビゲーション等を防ぐ（縦深防御）
   win.webContents.on('will-navigate', (e) => e.preventDefault());
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   if (process.env.KK_DEBUG) {
     win.webContents.on('console-message', (_e, _lv, msg) => {
       require('node:fs').appendFileSync(
@@ -48,10 +94,13 @@ function createWindow() {
   const mode = process.env.KK_SHOT_MODE;
   let hash = '';
   const argvPath = pathFromArgv(process.argv);
+  grantPath(argvPath);
+  grantPath(process.env.KK_OPEN);
   if (process.env.KK_OPEN) {
     hash = '#open=' + encodeURIComponent(process.env.KK_OPEN) + (mode ? '&' + mode : '');
   } else if (process.env.KK_SHOT) {
-    hash = mode === 'pres' ? '#sample-pres' : mode === 'sel' ? '#sample-sel' : '#sample';
+    hash = mode === 'pres' ? '#sample-pres' : mode === 'sel' ? '#sample-sel'
+      : mode === 'help' ? '#help' : '#sample';
   } else if (argvPath) {
     hash = '#open=' + encodeURIComponent(argvPath);
   }
@@ -84,7 +133,7 @@ if (!gotLock) {
     if (win.isMinimized()) win.restore();
     win.focus();
     const p = pathFromArgv(argv);
-    if (p) win.webContents.send('open-path', p);
+    if (p) { grantPath(p); win.webContents.send('open-path', p); }
   });
   app.whenReady().then(createWindow);
 }
@@ -98,16 +147,39 @@ ipcMain.handle('open-file', async () => {
       { name: 'すべて', extensions: ['*'] },
     ],
   });
-  return r.canceled ? null : r.filePaths[0];
+  if (r.canceled) return null;
+  grantPath(r.filePaths[0]);
+  return r.filePaths[0];
 });
 
 ipcMain.handle('open-folder', async () => {
   const r = await dialog.showOpenDialog(win, { properties: ['openDirectory'] });
-  return r.canceled ? null : r.filePaths[0];
+  if (r.canceled) return null;
+  grantPath(r.filePaths[0]);
+  return r.filePaths[0];
 });
 
-ipcMain.handle('read-file', (_e, p) => fsp.readFile(resolvePath(p), 'utf8'));
-ipcMain.handle('list-dir', (_e, d) => fsp.readdir(resolvePath(d)));
+ipcMain.handle('read-file', (_e, p) => fsp.readFile(guardPath(p), 'utf8'));
+ipcMain.handle('list-dir', (_e, d) => fsp.readdir(guardPath(d)));
+// preload の webUtils.getPathForFile 経由（= 実際にドロップされた File）のみが呼ぶ
+ipcMain.handle('grant-path', (_e, p) => { grantPath(p); });
+
+ipcMain.handle('recent-list', async () => {
+  const list = await loadRecent();
+  for (const e of list) grantPath(e.path); // 過去に正規経路で開いた場所を再許可
+  return list;
+});
+ipcMain.handle('recent-add', async (_e, p, title) => {
+  try { guardPath(p); } catch { return; } // 白名单外は記録しない
+  const key = String(p).toLowerCase();
+  const list = (await loadRecent()).filter(x => x.path.toLowerCase() !== key);
+  list.unshift({ path: String(p), title: String(title || '').slice(0, 80), ts: Date.now() });
+  await saveRecent(list.slice(0, 8));
+});
+ipcMain.handle('recent-remove', async (_e, p) => {
+  const key = String(p).toLowerCase();
+  await saveRecent((await loadRecent()).filter(x => x.path.toLowerCase() !== key));
+});
 ipcMain.handle('cache-dir', async () => {
   const d = cacheRoot();
   await fsp.mkdir(d, { recursive: true });
@@ -115,7 +187,7 @@ ipcMain.handle('cache-dir', async () => {
 });
 
 ipcMain.handle('has-office', () => new Promise((resolve) => {
-  execFile('powershell', [
+  execFile(POWERSHELL, [
     '-NoProfile', '-Command',
     "Test-Path 'Registry::HKEY_CLASSES_ROOT\\PowerPoint.Application'",
   ], { timeout: 15000 }, (err, stdout) => {
@@ -139,7 +211,7 @@ ipcMain.handle('export-pptx', async (_e, pptxPath) => {
 
 async function doExportPptx(pptxPath) {
   try {
-    const abs = resolvePath(pptxPath);
+    const abs = guardPath(pptxPath);
     const buf = await fsp.readFile(abs);
     const hash8 = crypto.createHash('sha1').update(buf).digest('hex').slice(0, 8);
     const outDir = path.join(cacheRoot(), hash8);
@@ -154,7 +226,7 @@ async function doExportPptx(pptxPath) {
     const script = path.join(APP_ROOT, 'scripts', 'export-pptx.ps1');
     // spawn + 行単位読取で PAGE i/N をレンダラへ増分中継（設計書 §6.9/§9）
     return await new Promise((resolve) => {
-      const ps = spawn('powershell', [
+      const ps = spawn(POWERSHELL, [
         '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script,
         '-Pptx', abs, '-OutDir', outDir,
       ]);

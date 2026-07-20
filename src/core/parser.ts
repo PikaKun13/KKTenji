@@ -29,7 +29,9 @@ export function parseTenji(jsonText: string): { deck?: ParsedDeck; fatal?: Diagn
       warn('dup-id', `id 重複: ${n.id}（後者を無視）`, n.id);
       continue;
     }
-    nodes.set(n.id, { ...n, parent: n.parent ?? null, page: n.page ?? null });
+    const title = typeof n.title === 'string' && n.title.trim() !== '' ? n.title : null;
+    if (title === null) warn('no-title', `title の無いノードに仮題を付けました: ${n.id}`, n.id);
+    nodes.set(n.id, { ...n, title: title ?? '（無題）', parent: n.parent ?? null, page: n.page ?? null });
   }
 
   // parent 不在 → ルート化

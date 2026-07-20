@@ -1,6 +1,6 @@
 # STATUS — 現在地と次の一手
 
-最終更新: 2026-07-20 未明（Claude 深夜自律セッション完了時）
+最終更新: 2026-07-20 昼（製品化バッチ完了時）
 
 ## 現在地: v1 MVP 完成・検証済み
 
@@ -31,13 +31,34 @@
   ノード矩形と衝突しない最小曲率を選ぶ（テスト 3 本付き）。建樹ガイドラインも
   平坦2層禁止に改定し、実 deck sidecar を立体構造で再生成済み
 
+## 2026-07-20 昼: 製品化バッチ（4 視点監査 → P0/P1 全対応。Vitest 53 green）
+
+- **安全加固**: 本番ビルドに CSP meta 注入（vite plugin、dev は対象外）/ IPC read-file・
+  list-dir・export-pptx にパス白名单（`electron/main.cjs` grantedRoots/guardPath。ダイアログ・
+  argv・KK_OPEN・二重起動・drop・履歴経由のみ許可、悪意 sidecar の `../` 遡上を遮断）/
+  powershell はフルパス起動 / `setWindowOpenHandler` deny / `source.path` のパス区切り・`..` 拒否
+- **ドロップ修復**: Electron 32+ の File.path 廃止に対応（preload で `webUtils.getPathForFile`
+  → grant-path → renderer へ。welcome 側は stopPropagation で二重発火防止）
+- **初回体験**: Welcome に 最近開いた deck（main 側 userData/recent.json、白名单通過パスのみ）/
+  エラー大表示 notice / 「deck の作り方」按钮。ヘルプ浮層（?・F1・コマンドバー）に
+  ショートカット表 + AI 用プロンプト雛形コピー。`schema/tenji-v1.schema.json` 新設
+- **UX**: pptx の Office 検出を背景化（図の描画を阻塞しない）/ sidecar 無し pptx は
+  書き出しで頁数を得て仮関係図（スター型）/ フォルダは md/pptx へフォールバック /
+  Node エラー日本語化 / テーマ持久化 / deck 未ロード時のボタン disabled /
+  診断チップ日本語化 + トーストに先頭メッセージ / fileUrl の URL エンコード（空白・#・% 対応）
+- **配布**: installer.nsh の .json 全域右クリック除去（uninstall は旧版分も掃除）/ README 刷新
+- 対抗レビュー（3 視点 → 逐条検証、agent 13 体）: 確認 5 件（pill 残留 medium 等）全修正、
+  誤報 5 件棄却。検証: スクリーンショット 4 枚（sample/実 deck/エラー画面/ヘルプ）
+
 ## 次の一手（優先順）
 
-1. 繰り越し: キャッシュ §8 完全準拠（mtime 快速照合、LRU 上限、更新バッジ）/
-   IPC パス白名单と CSP / モーション速度スライダー + 設定画面 /
-   演讲者ダブルスクリーン / 関係図の PNG/PDF 書き出し /
-   アウトラインの リンク一覧・フロー 視図タブ / 自動更新・コード署名
-2. Tauri 移行（Rust 導入後。インストーラ 95MB → 約10MB）
+1. 繰り越し（P2 運用系）: キャッシュ LRU 上限 + 手動クリア UI + mtime 照合・更新バッジ /
+   アンインストール時のキャッシュ掃除 / クラッシュログ収集 + About/バージョン表示 /
+   export タイムアウト時の孤児 POWERPNT 回収と原因明示 / 起動時の新版チェック（軽量）
+2. 機能繰り越し: モーション速度スライダー + 設定画面 / 演讲者ダブルスクリーン /
+   関係図の PNG/PDF 書き出し / アウトラインの リンク一覧・フロー 視図タブ
+3. コード署名（ユーザー判断: 当面買わない = SmartScreen は README の手順で回避）
+4. Tauri 移行（Rust 導入後。インストーラ 95MB → 約10MB）
 
 ## 環境メモ（このマシン固有）
 

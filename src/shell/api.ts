@@ -17,7 +17,15 @@ export interface ShellApi {
   onExportProgress?(cb: (p: { i: number; n: number }) => void): void;
   /** 右クリック/関連付け/二重起動から渡されたパス（electron のみ） */
   onOpenPath?(cb: (path: string) => void): void;
+  /** ドロップされた File の実パス（electron のみ。取得不能なら null） */
+  pathForFile?(f: File): Promise<string | null>;
+  /** 最近開いた deck（electron のみ） */
+  listRecent?(): Promise<RecentEntry[]>;
+  addRecent?(path: string, title: string): Promise<void>;
+  removeRecent?(path: string): Promise<void>;
 }
+
+export interface RecentEntry { path: string; title: string; ts: number; }
 
 declare global {
   interface Window { kk?: unknown; }

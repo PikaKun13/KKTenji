@@ -1,5 +1,6 @@
 // Electron レンダラ側シェル（preload の window.kk ブリッジを ShellApi に適合させる）
-import type { ExportResult, ShellApi } from './api';
+import type { ExportResult, RecentEntry, ShellApi } from './api';
+import { toFileUrl } from '../core/fileUrl';
 
 interface KkBridge {
   openFileDialog(): Promise<string | null>;
@@ -11,6 +12,10 @@ interface KkBridge {
   hasOffice(): Promise<boolean>;
   onExportProgress(cb: (p: { i: number; n: number }) => void): void;
   onOpenPath(cb: (path: string) => void): void;
+  pathForFile(f: File): Promise<string | null>;
+  listRecent(): Promise<RecentEntry[]>;
+  addRecent(path: string, title: string): Promise<void>;
+  removeRecent(path: string): Promise<void>;
 }
 
 export function electronShell(): ShellApi {
@@ -24,9 +29,7 @@ export function electronShell(): ShellApi {
     exportPptx: p => kk.exportPptx(p),
     getCacheDir: () => kk.getCacheDir(),
     hasOffice: () => kk.hasOffice(),
-    fileUrl(path: string) {
-      return 'file:///' + path.replace(/\\/g, '/').replace(/^\/+/, '');
-    },
+    fileUrl: (path: string) => toFileUrl(path),
     dirname(path: string) {
       const i = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
       return i < 0 ? '' : path.slice(0, i);
@@ -36,5 +39,9 @@ export function electronShell(): ShellApi {
     },
     onExportProgress: cb => kk.onExportProgress(cb),
     onOpenPath: cb => kk.onOpenPath(cb),
+    pathForFile: f => kk.pathForFile(f),
+    listRecent: () => kk.listRecent(),
+    addRecent: (p, t) => kk.addRecent(p, t),
+    removeRecent: p => kk.removeRecent(p),
   };
 }

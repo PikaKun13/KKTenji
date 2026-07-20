@@ -15,6 +15,7 @@ import { renderWelcome, type WelcomeView } from './ui/welcome';
 import { renderDiagnostics, type DiagnosticsView } from './ui/diagnostics';
 import { Presenter } from './ui/presenter';
 import { splitMdPages, renderMd } from './ui/mdrender';
+import { createHelp, type HelpView } from './ui/help';
 import { pickShell, type ShellApi } from './shell/api';
 
 const LINK_LEGEND: Array<[string, string]> = [
@@ -52,10 +53,15 @@ class App {
   selected: string | null = null;
   mdPages: string[] = [];
   deckDir = '';
+  deckPath = '';
   pngDir = '';
-  officeOk = false;
+  officeOk: boolean | null = null; // null = 確認中
   exporting = false;
   themeMode: 'auto' | 'light' | 'dark' = 'auto';
+  help!: HelpView;
+  deckButtons: HTMLButtonElement[] = [];
+  /** openDegradedPptx が済ませた書き出しを mountDeck が再利用するための受け渡し */
+  private preExport: { abs: string; dir: string } | null = null;
   searchInput!: HTMLInputElement;
   exportPill!: HTMLDivElement;
   currentDiags: Diagnostic[] = [];
@@ -65,16 +71,21 @@ class App {
   async init(): Promise<void> {
     this.shell = await pickShell();
     applyMotionVars(document.documentElement);
+    this.loadTheme();
     this.buildChrome();
     this.preview = new Preview(this.canvasWrap);
     this.preview.onClosed = () => { /* 選択は保持 */ };
     this.diags = renderDiagnostics(this.appEl, id => this.openNode(id));
+    this.help = createHelp(this.appEl);
     this.welcome = renderWelcome(this.canvasWrap, {
       onOpenFile: () => this.openFileFlow(),
       onOpenFolder: () => this.openFolderFlow(),
       onOpenSample: () => this.openByPath('sample/deck.tenji.json'),
-      onDropFile: p => this.openByPath(p),
+      onOpenGuide: () => this.help.open('guide'),
+      onDropFile: f => { void this.handleDropFile(f); },
+      onOpenRecent: p => { void this.openByPath(p, { fromRecent: true }); },
     });
+    void this.refreshRecent();
     this.presenter = new Presenter({
       appEl: this.appEl,
       hudHost: this.canvasWrap,
@@ -126,11 +137,16 @@ class App {
     this.exportPill.className = 'exportpill hidden';
     this.canvasWrap.appendChild(this.exportPill);
     this.shell.onExportProgress?.(p => {
+      if (!this.exporting) return; // 別 deck へ切替済みの旧エクスポート進捗は無視
       this.exportPill.textContent = `ページ画像を生成中… ${p.i} / ${p.n}`;
       this.exportPill.classList.remove('hidden');
     });
     // 右クリック「KKTenji で開く」/ 関連付け / 二重起動からのパス
     this.shell.onOpenPath?.(p => { void this.openByPath(p); });
+    // 検証用: #help でヘルプ浮層を開く
+    if (location.hash === '#help') {
+      setTimeout(() => this.help.open('keys'), 300);
+    }
     // 検証用: #sample で起動されたら sample deck を自動で開く（#sample-pres はプレゼンまで進む）
     if (location.hash.startsWith('#sample')) {
       void this.openByPath('sample/deck.tenji.json').then(() => {
@@ -202,11 +218,14 @@ class App {
     btn('開く', '', () => this.openFileFlow());
     btn('フォルダ', '', () => this.openFolderFlow());
     sep();
-    btn('検索', '', () => this.searchInput.focus());
-    btn('フィット', '', () => this.fitAll(DUR.fit));
+    this.deckButtons.push(btn('検索', '', () => this.searchInput.focus()));
+    this.deckButtons.push(btn('フィット', '', () => this.fitAll(DUR.fit)));
     btn('テーマ', '', () => this.cycleTheme());
+    btn('ヘルプ (?)', '', () => this.help.open('keys'));
     sep();
-    btn('▷ プレゼン開始 (F5)', 'primary', () => this.presenter.enter());
+    this.deckButtons.push(btn('▷ プレゼン開始 (F5)', 'primary', () => this.presenter.enter()));
+    // deck 未ロード時は無反応ボタンを見せない（誤解防止）
+    for (const b of this.deckButtons) b.disabled = true;
     this.appEl.appendChild(cb);
 
     // 主体行
@@ -344,23 +363,34 @@ class App {
   }
 
   async openFolderPath(dir: string): Promise<void> {
+    this.welcome.setNotice(null);
     const files = await this.shell.listDir(dir);
     const sidecars = files.filter(f => f.endsWith('.tenji.json'));
-    if (sidecars.length === 0) {
-      this.diags.set([{ level: 'warn', code: 'no-deck', message: 'フォルダに *.tenji.json が見つかりません' }]);
-      return;
-    }
     if (sidecars.length === 1) {
       await this.openByPath(this.shell.join(dir, sidecars[0]));
       return;
     }
-    // 複数 deck: welcome を簡易一覧に（前回の一覧は除去）
+    // sidecar が無ければ素の md/pptx にフォールバック（受領直後の典型を行き止まりにしない）
+    const candidates = sidecars.length > 0
+      ? sidecars
+      : files.filter(f => /\.(md|pptx)$/i.test(f));
+    if (candidates.length === 0) {
+      const msg = 'フォルダに deck が見つかりません（*.tenji.json / *.md / *.pptx）。「deck の作り方」も参照してください';
+      this.diags.set([{ level: 'warn', code: 'no-deck', message: msg }]);
+      if (!this.deck) this.welcome.setNotice(msg);
+      return;
+    }
+    if (candidates.length === 1) {
+      await this.openByPath(this.shell.join(dir, candidates[0]));
+      return;
+    }
+    // 複数候補: welcome を簡易一覧に（前回の一覧は除去）
     this.welcome.show();
     this.welcome.el.querySelector('.deck-list')?.remove();
     const list = document.createElement('div');
     list.className = 'actions deck-list';
     list.style.flexDirection = 'column';
-    for (const f of sidecars) {
+    for (const f of candidates) {
       const b = document.createElement('button');
       b.className = 'wbtn';
       b.textContent = f.replace(/\.tenji\.json$/, '');
@@ -370,7 +400,8 @@ class App {
     this.welcome.el.appendChild(list);
   }
 
-  async openByPath(path: string): Promise<void> {
+  async openByPath(path: string, opts: { fromRecent?: boolean } = {}): Promise<void> {
+    this.welcome.setNotice(null); // 前回の失敗通知は新しい試行で消す
     try {
       if (path.endsWith('.tenji.json') || path.endsWith('.tenji')) {
         await this.openSidecar(path);
@@ -392,27 +423,69 @@ class App {
           await this.shell.readTextFile(sidecar);
           await this.openSidecar(sidecar);
         } catch {
-          this.diags.set([{
-            level: 'warn', code: 'no-sidecar',
-            message: 'この pptx には .tenji.json がありません。Claude との対話で関係図(sidecar)を生成してから開いてください',
-          }]);
+          await this.openDegradedPptx(path);
         }
       } else {
-        this.diags.set([{ level: 'warn', code: 'unsupported', message: `対応していないファイルです: ${path}` }]);
+        this.showOpenError(`対応していないファイルです: ${path}`, 'unsupported');
       }
     } catch (e) {
-      this.diags.set([{ level: 'error', code: 'open-failed', message: `開けませんでした: ${(e as Error).message}` }]);
+      this.showOpenError(`開けませんでした: ${this.errText(e)}`, 'open-failed');
+      if (opts.fromRecent) {
+        void this.shell.removeRecent?.(path);
+        void this.refreshRecent();
+      }
     }
+  }
+
+  /** 失敗を診断パネルと（deck 未表示なら）Welcome 上の大きな通知の両方に出す */
+  private showOpenError(message: string, code: string): void {
+    this.diags.set([{ level: code === 'open-failed' ? 'error' : 'warn', code, message }]);
+    if (!this.deck) this.welcome.setNotice(message);
+  }
+
+  /** Node/IPC の生エラーを利用者向けの日本語へ */
+  private errText(e: unknown): string {
+    const m = e instanceof Error ? e.message : String(e);
+    if (m.includes('PATH_DENIED')) {
+      return 'セキュリティ保護のため、この場所は読み込めません（「開く」ダイアログから選び直してください）';
+    }
+    if (m.includes('ENOENT')) return 'ファイルが見つかりません（移動または削除された可能性があります）';
+    if (m.includes('EACCES') || m.includes('EPERM')) return 'アクセスが拒否されました';
+    if (m.includes('EBUSY')) return '他のアプリがファイルを使用中です';
+    if (m.includes('EISDIR')) return 'フォルダはファイルとして開けません';
+    return m;
+  }
+
+  private async handleDropFile(f: File): Promise<void> {
+    const legacy = (f as File & { path?: string }).path; // ブラウザ dev / 旧 Electron 向け退路
+    const p = this.shell.pathForFile ? await this.shell.pathForFile(f) : legacy ?? null;
+    if (p) {
+      await this.openByPath(p);
+    } else {
+      this.showOpenError('ドロップからファイルの場所を取得できませんでした。「開く」から選んでください', 'drop-failed');
+    }
+  }
+
+  private async refreshRecent(): Promise<void> {
+    const items = (await this.shell.listRecent?.()) ?? [];
+    this.welcome.setRecent(items);
+  }
+
+  /** mount 成功時に履歴へ記録（絶対パスのみ。sample 等の同梱相対パスは対象外） */
+  private recordRecent(path: string, title: string): void {
+    if (!/^[A-Za-z]:[\\/]|^\\\\/.test(path)) return;
+    void this.shell.addRecent?.(path, title)?.then(() => this.refreshRecent());
   }
 
   async openSidecar(sidecarPath: string): Promise<void> {
     const text = await this.shell.readTextFile(sidecarPath);
     const r = parseTenji(text);
     if (!r.deck) {
-      this.diags.set([r.fatal!]);
+      this.showOpenError(r.fatal!.message, r.fatal!.code);
       return;
     }
     this.deckDir = this.shell.dirname(sidecarPath);
+    this.deckPath = sidecarPath;
     await this.mountDeck(r.deck, r.deck.diagnostics);
   }
 
@@ -436,15 +509,64 @@ class App {
     const r = parseTenji(JSON.stringify(doc));
     if (!r.deck) return;
     this.deckDir = this.shell.dirname(mdPath);
+    this.deckPath = mdPath;
     const note: Diagnostic = {
       level: 'warn', code: 'degraded',
-      message: 'sidecar が無いため仮の関係図を自動生成しました。Claude との対話で精密な .tenji.json を作れます',
+      message: 'sidecar が無いため仮の関係図を自動生成しました。精密な関係図はヘルプ「deck の作り方」から',
     };
     await this.mountDeck(r.deck, [note, ...r.deck.diagnostics]);
   }
 
+  /** sidecar の無い素の pptx: PNG 書き出しで頁数を得て、仮のスター型関係図を作る（設計書 §4.8） */
+  async openDegradedPptx(pptxPath: string): Promise<void> {
+    const ok = await this.shell.hasOffice();
+    if (!ok) {
+      this.showOpenError(
+        'この pptx には sidecar が無く、PowerPoint も未検出のため頁構成を読めません。' +
+        'ヘルプ「deck の作り方」の手順で .tenji.json を作ると開けます', 'no-sidecar');
+      return;
+    }
+    this.exportPill.textContent = 'ページ画像を生成しています…';
+    this.exportPill.classList.remove('hidden');
+    const res = await this.shell.exportPptx(pptxPath);
+    this.exportPill.classList.add('hidden');
+    if (!res.pages || !res.dir) {
+      this.showOpenError(`ページ画像の生成に失敗しました: ${this.exportErrText(res.error)}`, 'export-failed');
+      return;
+    }
+    const base = pptxPath.split(/[\\/]/).pop() ?? 'deck.pptx';
+    const doc: TenjiDoc = {
+      version: 1,
+      title: base.replace(/\.pptx$/i, ''),
+      source: { type: 'pptx', path: base },
+      nodes: Array.from({ length: res.pages }, (_, i) => ({
+        id: `p${i + 1}`, title: `頁 ${i + 1}`, parent: i === 0 ? null : 'p1', page: i + 1,
+      })),
+      links: [],
+    };
+    const r = parseTenji(JSON.stringify(doc));
+    if (!r.deck) return;
+    this.deckDir = this.shell.dirname(pptxPath);
+    this.deckPath = pptxPath;
+    // mountDeck に hasOffice/export を再実行させない（powershell 二重起動と pill ちらつき防止）
+    this.preExport = { abs: pptxPath, dir: res.dir };
+    const note: Diagnostic = {
+      level: 'warn', code: 'degraded',
+      message: 'sidecar が無いため頁を並べた仮の関係図を表示しています。精密な関係図はヘルプ「deck の作り方」から',
+    };
+    await this.mountDeck(r.deck, [note, ...r.deck.diagnostics]);
+  }
+
+  private exportErrText(err?: string): string {
+    if (!err || err === 'UNKNOWN') {
+      return '原因不明（PowerPoint が確認ダイアログ等で停止していないかご確認ください）';
+    }
+    if (err === 'NO_OFFICE') return 'PowerPoint が見つかりません';
+    return err;
+  }
+
   async mountDeck(deck: ParsedDeck, diagnostics: Diagnostic[]): Promise<void> {
-    // 旧 deck の後片付け
+    // 旧 deck の後片付け（走行中エクスポートの pill/フラグも引き継がない）
     this.view?.destroy();
     this.outline?.destroy();
     this.inspector?.hide();
@@ -452,13 +574,21 @@ class App {
     this.selected = null;
     this.mdPages = [];
     this.pngDir = '';
+    this.exporting = false;
+    this.exportPill.classList.add('hidden');
 
     this.deck = deck;
     this.layout = layoutDeck(deck);
 
-    // ソース読み込み
+    // ソース読み込み。sidecar は不可信入力なので親ディレクトリ遡上は拒否（IPC 白名单と二重の防御）
     const src = deck.doc.source;
-    if (src?.type === 'md') {
+    const srcPathBad = src && (src.path.includes('..') || /^[\\/]|^[A-Za-z]:/.test(src.path));
+    if (srcPathBad) {
+      diagnostics = [...diagnostics, {
+        level: 'warn', code: 'bad-source',
+        message: `source.path はファイル名のみ許可です: ${src.path}`,
+      }];
+    } else if (src?.type === 'md') {
       try {
         const md = await this.shell.readTextFile(this.shell.join(this.deckDir, src.path));
         this.mdPages = splitMdPages(md, src.pageBy ?? 'h2');
@@ -468,29 +598,29 @@ class App {
         }];
       }
     } else if (src?.type === 'pptx') {
-      this.officeOk = await this.shell.hasOffice();
-      if (this.officeOk) {
-        // 図の表示を阻断しないよう、書き出しはバックグラウンドで走らせる
-        const abs = this.shell.join(this.deckDir, src.path);
-        this.exporting = true;
-        this.exportPill.textContent = 'ページ画像を準備中…';
-        this.exportPill.classList.remove('hidden');
-        const myDeck = deck;
-        void this.shell.exportPptx(abs).then(res => {
-          if (this.deck !== myDeck) return; // 既に別 deck へ切替済み
-          this.exporting = false;
-          this.exportPill.classList.add('hidden');
-          if (res.dir) {
-            this.pngDir = res.dir;
-          } else if (res.error && res.error !== 'NO_OFFICE') {
-            this.pushDiag({ level: 'warn', code: 'export-failed', message: `PNG 書き出しに失敗: ${res.error}` });
-          }
-        });
+      const abs = this.shell.join(this.deckDir, src.path);
+      if (this.preExport && this.preExport.abs === abs) {
+        // openDegradedPptx が直前に書き出し済み
+        this.officeOk = true;
+        this.pngDir = this.preExport.dir;
+        this.preExport = null;
+        this.exporting = false;
       } else {
-        diagnostics = [...diagnostics, {
-          level: 'warn', code: 'no-office',
-          message: 'PowerPoint が見つからないためプレビュー画像を生成できません（関係図は利用できます）',
-        }];
+      // Office 検出は遅い（powershell 起動）ため図の表示を阻断せず背景で行う
+      this.officeOk = null;
+      const myDeck = deck;
+      void this.shell.hasOffice().then(ok => {
+        if (this.deck !== myDeck) return;
+        this.officeOk = ok;
+        if (ok) {
+          this.startPptxExport(abs, myDeck);
+        } else {
+          this.pushDiag({
+            level: 'warn', code: 'no-office',
+            message: 'PowerPoint が見つからないためプレビュー画像を生成できません（関係図は利用できます）',
+          });
+        }
+      });
       }
     }
 
@@ -530,10 +660,34 @@ class App {
     b.textContent = String(deck.doc.title ?? 'deck');
     this.docTitleEl.append(b, ' — KKTenji');
     this.stNodes.textContent = `ノード ${deck.nodes.size} ・ リンク ${deck.links.length}`;
-    this.stSource.textContent = `ソース: ${src?.type ?? '不明'}`;
+    const SRC_LABEL: Record<string, string> = { md: 'Markdown', pptx: 'PowerPoint' };
+    this.stSource.textContent = `ソース: ${SRC_LABEL[src?.type ?? ''] ?? '構造のみ'}`;
 
+    for (const btnEl of this.deckButtons) btnEl.disabled = false;
+    this.recordRecent(this.deckPath, String(deck.doc.title ?? ''));
+    this.welcome.setNotice(null);
     this.welcome.hide();
     this.camera.jump(this.camera.fitCam(this.layout.bounds));
+  }
+
+  /** pptx→PNG 書き出しを背景で開始する（mountDeck から Office 検出後に呼ばれる） */
+  private startPptxExport(abs: string, myDeck: ParsedDeck): void {
+    this.exporting = true;
+    this.exportPill.textContent = 'ページ画像を準備中…';
+    this.exportPill.classList.remove('hidden');
+    void this.shell.exportPptx(abs).then(res => {
+      if (this.deck !== myDeck) return; // 既に別 deck へ切替済み
+      this.exporting = false;
+      this.exportPill.classList.add('hidden');
+      if (res.dir) {
+        this.pngDir = res.dir;
+      } else if (res.error && res.error !== 'NO_OFFICE') {
+        this.pushDiag({
+          level: 'warn', code: 'export-failed',
+          message: `PNG 書き出しに失敗: ${this.exportErrText(res.error)}`,
+        });
+      }
+    });
   }
 
   // ── 操作 ──
@@ -643,9 +797,11 @@ class App {
       } else {
         el = this.placeholder(this.exporting
           ? 'ページ画像を生成中です… 少し待ってからもう一度開いてください'
-          : this.officeOk
-            ? 'プレビュー画像を生成できませんでした（右下の診断を参照）'
-            : 'プレビューを生成できません（PowerPoint 未検出）');
+          : this.officeOk === null
+            ? 'PowerPoint を確認しています… 少し待ってからもう一度開いてください'
+            : this.officeOk
+              ? 'プレビュー画像を生成できませんでした（右下の診断を参照）'
+              : 'プレビューを生成できません（PowerPoint 未検出）');
         sourceLabel = 'pptx';
         note = '関係図・アウトライン・プレゼン運鏡はそのまま利用できます。';
       }
@@ -677,6 +833,19 @@ class App {
 
   cycleTheme(): void {
     this.themeMode = this.themeMode === 'auto' ? 'light' : this.themeMode === 'light' ? 'dark' : 'auto';
+    this.applyTheme();
+    try { localStorage.setItem('kk.theme', this.themeMode); } catch { /* ignore */ }
+  }
+
+  private loadTheme(): void {
+    try {
+      const saved = localStorage.getItem('kk.theme');
+      if (saved === 'light' || saved === 'dark' || saved === 'auto') this.themeMode = saved;
+    } catch { /* ignore */ }
+    this.applyTheme();
+  }
+
+  private applyTheme(): void {
     const root = document.documentElement;
     if (this.themeMode === 'auto') delete root.dataset.theme;
     else root.dataset.theme = this.themeMode;
@@ -687,8 +856,8 @@ class App {
     window.addEventListener('dragover', e => e.preventDefault());
     window.addEventListener('drop', e => {
       e.preventDefault();
-      const f = e.dataTransfer?.files?.[0] as (File & { path?: string }) | undefined;
-      if (f?.path) void this.openByPath(f.path);
+      const f = e.dataTransfer?.files?.[0];
+      if (f) void this.handleDropFile(f);
     });
   }
 
@@ -697,6 +866,16 @@ class App {
       // 入力欄フォーカス中はグローバルキーを発火させない
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+      // ヘルプ浮層が開いている間は閉じる操作のみ受ける
+      if (this.help.isOpen) {
+        if (e.key === 'Escape' || e.key === '?' || e.key === 'F1') { e.preventDefault(); this.help.close(); }
+        return;
+      }
+      if (e.key === '?' || e.key === 'F1') {
+        e.preventDefault();
+        if (!this.presenter.active) this.help.open('keys');
+        return;
+      }
       if (e.ctrlKey && e.key.toLowerCase() === 'f') {
         e.preventDefault();
         if (!this.presenter.active) this.searchInput.focus();

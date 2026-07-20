@@ -13,9 +13,9 @@
 !macroend
 
 !macro customInstall
+  ; .json への全域登録は行わない（deck と無関係な JSON にまでメニューが出るため）
   !insertmacro writeOpenWith "SystemFileAssociations\.pptx"
   !insertmacro writeOpenWith "SystemFileAssociations\.md"
-  !insertmacro writeOpenWith "SystemFileAssociations\.json"
   ; フォルダ右クリック
   WriteRegStr HKCU "Software\Classes\Directory\shell\KKTenji" "" "KKTenji で開く"
   WriteRegStr HKCU "Software\Classes\Directory\shell\KKTenji" "Icon" "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
@@ -25,6 +25,7 @@
 !macro customUnInstall
   !insertmacro removeOpenWith "SystemFileAssociations\.pptx"
   !insertmacro removeOpenWith "SystemFileAssociations\.md"
+  ; 旧版が登録した .json 分も掃除する
   !insertmacro removeOpenWith "SystemFileAssociations\.json"
   DeleteRegKey HKCU "Software\Classes\Directory\shell\KKTenji"
 !macroend
