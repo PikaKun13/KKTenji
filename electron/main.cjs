@@ -73,7 +73,9 @@ function createWindow() {
 }
 
 // 単一インスタンス: 2 回目の起動はパスを既存窓へ渡す
-const gotLock = app.requestSingleInstanceLock();
+// （KK_SHOT/KK_OPEN の検証起動はロックに参加しない = 実行中のアプリと共存）
+const isVerifyRun = !!(process.env.KK_SHOT || process.env.KK_OPEN);
+const gotLock = isVerifyRun ? true : app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
