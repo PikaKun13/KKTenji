@@ -9,12 +9,20 @@ export interface PreviewContent {
 
 export interface FromRect { x: number; y: number; w: number; h: number; }
 
+// 表示サイズ 4 段階（利用可能領域に対する比率）。既定は 85%
+const SCALES = [0.55, 0.7, 0.85, 1.0] as const;
+const SCALE_KEY = 'kk.previewScale';
+
 export class Preview {
   readonly smoke: HTMLDivElement;
   readonly pv: HTMLDivElement;
   isOpen = false;
   onClosed?: () => void;
   private presenting = false;
+  private scaleIdx = 2;
+  private lastViewW = 0;
+  private lastViewH = 0;
+  private isMd = false;
 
   constructor(host: HTMLElement) {
     this.smoke = document.createElement('div');
@@ -26,6 +34,32 @@ export class Preview {
     this.smoke.addEventListener('click', () => {
       if (!this.presenting) this.close();
     });
+    const saved = localStorage.getItem(SCALE_KEY);
+    if (saved !== null) {
+      const n = Number(saved);
+      if (Number.isInteger(n) && n >= 0 && n < SCALES.length) this.scaleIdx = n;
+    }
+  }
+
+  /** 利用可能領域と現在の段階から幅を決める（16:9 の高さ制約も考慮） */
+  private calcWidth(): number {
+    const s = SCALES[this.scaleIdx];
+    const maxW = this.lastViewW * 0.94 - 24;
+    const maxByH = (this.lastViewH - 32 - 118) * (16 / 9); // ヘッダ+補足+余白 ≈118px
+    let w = Math.max(320, Math.min(maxW, maxByH) * s);
+    if (this.isMd) w = Math.min(w, 900); // md は行長を読める幅に抑える
+    return w;
+  }
+
+  /** 表示サイズを 1 段階変える（+1 / -1）。設定は記憶される */
+  resize(delta: number): void {
+    const next = Math.max(0, Math.min(SCALES.length - 1, this.scaleIdx + delta));
+    if (next === this.scaleIdx) return;
+    this.scaleIdx = next;
+    localStorage.setItem(SCALE_KEY, String(next));
+    if (!this.isOpen) return;
+    this.pv.style.width = this.calcWidth() + 'px';
+    requestAnimationFrame(() => this.place(this.lastViewW, this.lastViewH));
   }
 
   show(node: TenjiNode, content: PreviewContent, from: FromRect, viewW: number, viewH: number, presenting = false): void {
@@ -49,6 +83,17 @@ export class Preview {
     src.className = 'pv-pg';
     src.textContent = content.sourceLabel;
     head.appendChild(src);
+    const szMinus = document.createElement('button');
+    szMinus.className = 'pv-sz';
+    szMinus.textContent = '−';
+    szMinus.title = '表示を小さく（-）';
+    szMinus.addEventListener('click', () => this.resize(-1));
+    const szPlus = document.createElement('button');
+    szPlus.className = 'pv-sz';
+    szPlus.textContent = '＋';
+    szPlus.title = '表示を大きく（+）';
+    szPlus.addEventListener('click', () => this.resize(1));
+    head.append(szMinus, szPlus);
     const x = document.createElement('button');
     x.className = 'pv-x';
     x.textContent = '✕';
@@ -67,7 +112,11 @@ export class Preview {
     pv.appendChild(note);
 
     // FLIP: ノード矩形 → 中央シート
-    const fw = Math.min(720, viewW * 0.78);
+    this.lastViewW = viewW;
+    this.lastViewH = viewH;
+    this.presenting = presenting;
+    this.isMd = !!content.el.querySelector('.mdpage') || content.el.classList.contains('mdpage');
+    const fw = this.calcWidth();
     pv.style.width = fw + 'px';
     pv.classList.remove('anim');
     pv.classList.add('open');

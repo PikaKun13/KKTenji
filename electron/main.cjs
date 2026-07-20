@@ -28,6 +28,12 @@ function createWindow() {
   win.setMenuBarVisibility(false);
   // drop されたファイルへのナビゲーション等を防ぐ（縦深防御）
   win.webContents.on('will-navigate', (e) => e.preventDefault());
+  if (process.env.KK_DEBUG) {
+    win.webContents.on('console-message', (_e, _lv, msg) => {
+      require('node:fs').appendFileSync(
+        path.join(cacheRoot(), 'console-debug.txt'), msg + '\n');
+    });
+  }
   const mode = process.env.KK_SHOT_MODE;
   let hash = '';
   if (process.env.KK_OPEN) {

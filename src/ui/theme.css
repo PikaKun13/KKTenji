@@ -215,7 +215,11 @@ svg.stage{position:absolute;inset:0;width:100%;height:100%;touch-action:none;dis
 .pv-head .pv-pg{font-size:10.5px;color:var(--text3);background:rgba(128,128,128,.14);border-radius:8px;padding:1px 7px;white-space:nowrap}
 .pv-head .pv-x{margin-left:auto;color:var(--text3);padding:3px 9px;border-radius:5px}
 .pv-head .pv-x:hover{background:var(--close-hover);color:#fff}
-.pv-body{padding:14px;overflow:auto;max-height:62vh}
+.pv-head .pv-sz{color:var(--text3);padding:3px 9px;border-radius:5px;font-size:14px}
+.pv-head .pv-sz:hover{background:rgba(128,128,128,.15);color:var(--text)}
+.pv-head .pv-sz:first-of-type{margin-left:auto}
+.pv-head .pv-sz + .pv-x{margin-left:2px}
+.pv-body{padding:14px;overflow:auto;max-height:calc(100vh - 150px)}
 .pv-body img.slide-png{width:100%;aspect-ratio:16/9;object-fit:contain;border-radius:6px;border:1px solid var(--hair);display:block;background:rgba(128,128,128,.06)}
 .pv-note{font-size:10.5px;color:var(--text3);padding:0 14px 10px}
 .pv-placeholder{aspect-ratio:16/9;display:flex;flex-direction:column;align-items:center;justify-content:center;

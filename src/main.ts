@@ -598,6 +598,12 @@ class App {
     document.addEventListener('keydown', e => {
       if (e.key === 'F5') { e.preventDefault(); if (!this.presenter.active) this.presenter.enter(); return; }
       if (this.presenter.handleKey(e)) { e.preventDefault(); return; }
+      // プレビュー表示サイズ（+/−。プレゼン中も有効）
+      if (this.preview.isOpen && (e.key === '+' || e.key === '=' || e.key === '-')) {
+        e.preventDefault();
+        this.preview.resize(e.key === '-' ? -1 : 1);
+        return;
+      }
       if (this.presenter.active) return; // 以下は通常モード専用（設計書 §7）
       if (e.ctrlKey && e.key.toLowerCase() === 'o') {
         e.preventDefault();
