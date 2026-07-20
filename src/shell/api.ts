@@ -13,6 +13,10 @@ export interface ShellApi {
   hasOffice(): Promise<boolean>;
   dirname(path: string): string;
   join(...parts: string[]): string;
+  /** pptx→PNG の増分進捗（electron のみ） */
+  onExportProgress?(cb: (p: { i: number; n: number }) => void): void;
+  /** 右クリック/関連付け/二重起動から渡されたパス（electron のみ） */
+  onOpenPath?(cb: (path: string) => void): void;
 }
 
 declare global {

@@ -9,6 +9,8 @@ interface KkBridge {
   exportPptx(pptxPath: string): Promise<ExportResult>;
   getCacheDir(): Promise<string>;
   hasOffice(): Promise<boolean>;
+  onExportProgress(cb: (p: { i: number; n: number }) => void): void;
+  onOpenPath(cb: (path: string) => void): void;
 }
 
 export function electronShell(): ShellApi {
@@ -32,5 +34,7 @@ export function electronShell(): ShellApi {
     join(...parts: string[]) {
       return parts.filter(Boolean).join('\\');
     },
+    onExportProgress: cb => kk.onExportProgress(cb),
+    onOpenPath: cb => kk.onOpenPath(cb),
   };
 }

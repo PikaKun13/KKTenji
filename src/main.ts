@@ -54,7 +54,13 @@ class App {
   deckDir = '';
   pngDir = '';
   officeOk = false;
+  exporting = false;
   themeMode: 'auto' | 'light' | 'dark' = 'auto';
+  searchInput!: HTMLInputElement;
+  exportPill!: HTMLDivElement;
+  currentDiags: Diagnostic[] = [];
+  searchHits: string[] = [];
+  searchIdx = -1;
 
   async init(): Promise<void> {
     this.shell = await pickShell();
@@ -115,6 +121,16 @@ class App {
     this.wireKeyboard();
     this.wireGlobalDrop();
     this.startLoop();
+    // pptx→PNG の増分進捗（設計書 §6.9）
+    this.exportPill = document.createElement('div');
+    this.exportPill.className = 'exportpill hidden';
+    this.canvasWrap.appendChild(this.exportPill);
+    this.shell.onExportProgress?.(p => {
+      this.exportPill.textContent = `ページ画像を生成中… ${p.i} / ${p.n}`;
+      this.exportPill.classList.remove('hidden');
+    });
+    // 右クリック「KKTenji で開く」/ 関連付け / 二重起動からのパス
+    this.shell.onOpenPath?.(p => { void this.openByPath(p); });
     // 検証用: #sample で起動されたら sample deck を自動で開く（#sample-pres はプレゼンまで進む）
     if (location.hash.startsWith('#sample')) {
       void this.openByPath('sample/deck.tenji.json').then(() => {
@@ -129,6 +145,10 @@ class App {
       const [openPart, ...rest] = location.hash.slice(6).split('&');
       void this.openByPath(decodeURIComponent(openPart)).then(() => {
         for (const r of rest) {
+          if (r.startsWith('q=')) {
+            const q = decodeURIComponent(r.slice(2));
+            setTimeout(() => { this.searchInput.value = q; this.runSearch(q); }, 600);
+          }
           if (r.startsWith('sel=')) setTimeout(() => this.openNode(r.slice(4)), 800);
           if (r === 'pres=1') setTimeout(() => this.presenter.enter(), 800);
           if (r === 'pres=auto') { // 検証用: 2.6s ごとに自動步進
@@ -182,6 +202,7 @@ class App {
     btn('開く', '', () => this.openFileFlow());
     btn('フォルダ', '', () => this.openFolderFlow());
     sep();
+    btn('検索', '', () => this.searchInput.focus());
     btn('フィット', '', () => this.fitAll(DUR.fit));
     btn('テーマ', '', () => this.cycleTheme());
     sep();
@@ -196,9 +217,20 @@ class App {
     const sbHead = document.createElement('div');
     sbHead.className = 'sb-head';
     sbHead.textContent = 'アウトライン';
+    const sbSearch = document.createElement('div');
+    sbSearch.className = 'sbsearch';
+    this.searchInput = document.createElement('input');
+    this.searchInput.placeholder = '検索 (Ctrl+F)';
+    this.searchInput.addEventListener('input', () => this.runSearch(this.searchInput.value));
+    this.searchInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); this.nextSearchHit(e.shiftKey ? -1 : 1); }
+      if (e.key === 'Escape') { this.clearSearch(); this.searchInput.blur(); }
+      e.stopPropagation();
+    });
+    sbSearch.appendChild(this.searchInput);
     this.sidebarTree = document.createElement('div');
     this.sidebarTree.style.cssText = 'flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden';
-    sidebar.append(sbHead, this.sidebarTree);
+    sidebar.append(sbHead, sbSearch, this.sidebarTree);
     this.canvasWrap = document.createElement('div');
     this.canvasWrap.className = 'canvas-wrap';
     row.append(sidebar, this.canvasWrap);
@@ -261,9 +293,57 @@ class App {
     if (p) await this.openByPath(p);
   }
 
+  // ── 検索（title / summary / link label。NFKC 正規化）──
+  private norm(s: string): string { return s.normalize('NFKC').toLowerCase(); }
+
+  runSearch(q: string): void {
+    if (!this.deck || !this.view) return;
+    const query = this.norm(q.trim());
+    if (query === '') { this.clearSearch(); return; }
+    const hits = new Set<string>();
+    for (const n of this.deck.nodes.values()) {
+      if (this.norm(n.title + ' ' + (n.summary ?? '')).includes(query)) hits.add(n.id);
+    }
+    for (const l of this.deck.links) {
+      if (l.label && this.norm(l.label).includes(query)) { hits.add(l.from); hits.add(l.to); }
+    }
+    this.searchHits = [...this.deck.nodes.keys()].filter(id => hits.has(id));
+    this.searchIdx = -1;
+    this.view.setSearchHits(hits);
+    this.outline?.filter(hits);
+    this.stPath.textContent = `検索: ${this.searchHits.length} 件`;
+  }
+
+  clearSearch(): void {
+    this.searchInput.value = '';
+    this.searchHits = [];
+    this.searchIdx = -1;
+    this.view?.setSearchHits(null);
+    this.outline?.filter(null);
+    this.stPath.textContent = '選択: ' + (this.selected ? this.pathOf(this.selected) : 'なし');
+  }
+
+  nextSearchHit(dir: number): void {
+    if (this.searchHits.length === 0) return;
+    this.searchIdx = (this.searchIdx + dir + this.searchHits.length) % this.searchHits.length;
+    const id = this.searchHits[this.searchIdx];
+    const b = this.layout?.boxes.get(id);
+    if (b) this.camera.centerOn(b, Math.max(1.1, this.camera.target.s), DUR.camera);
+    this.stPath.textContent = `検索: ${this.searchIdx + 1} / ${this.searchHits.length} 件`;
+  }
+
+  pushDiag(d: Diagnostic): void {
+    this.currentDiags = [...this.currentDiags, d];
+    this.diags.set(this.currentDiags);
+  }
+
   async openFolderFlow(): Promise<void> {
     const dir = await this.shell.openFolderDialog();
     if (!dir) return;
+    await this.openFolderPath(dir);
+  }
+
+  async openFolderPath(dir: string): Promise<void> {
     const files = await this.shell.listDir(dir);
     const sidecars = files.filter(f => f.endsWith('.tenji.json'));
     if (sidecars.length === 0) {
@@ -292,8 +372,12 @@ class App {
 
   async openByPath(path: string): Promise<void> {
     try {
-      if (path.endsWith('.tenji.json')) {
+      if (path.endsWith('.tenji.json') || path.endsWith('.tenji')) {
         await this.openSidecar(path);
+      } else if (path.endsWith('.json')) {
+        await this.openSidecar(path); // 右クリックからの一般 .json も sidecar として試す
+      } else if (!/\.[A-Za-z0-9]+$/.test(path)) {
+        await this.openFolderPath(path); // 拡張子なし = フォルダ
       } else if (path.endsWith('.md')) {
         const sidecar = path.replace(/\.md$/, '.tenji.json');
         try {
@@ -386,14 +470,22 @@ class App {
     } else if (src?.type === 'pptx') {
       this.officeOk = await this.shell.hasOffice();
       if (this.officeOk) {
+        // 図の表示を阻断しないよう、書き出しはバックグラウンドで走らせる
         const abs = this.shell.join(this.deckDir, src.path);
-        const res = await this.shell.exportPptx(abs);
-        if (res.dir) this.pngDir = res.dir;
-        else if (res.error && res.error !== 'NO_OFFICE') {
-          diagnostics = [...diagnostics, {
-            level: 'warn', code: 'export-failed', message: `PNG 書き出しに失敗: ${res.error}`,
-          }];
-        }
+        this.exporting = true;
+        this.exportPill.textContent = 'ページ画像を準備中…';
+        this.exportPill.classList.remove('hidden');
+        const myDeck = deck;
+        void this.shell.exportPptx(abs).then(res => {
+          if (this.deck !== myDeck) return; // 既に別 deck へ切替済み
+          this.exporting = false;
+          this.exportPill.classList.add('hidden');
+          if (res.dir) {
+            this.pngDir = res.dir;
+          } else if (res.error && res.error !== 'NO_OFFICE') {
+            this.pushDiag({ level: 'warn', code: 'export-failed', message: `PNG 書き出しに失敗: ${res.error}` });
+          }
+        });
       } else {
         diagnostics = [...diagnostics, {
           level: 'warn', code: 'no-office',
@@ -428,7 +520,11 @@ class App {
       onPreview: id => this.openPreview(id, false),
     });
 
+    this.currentDiags = diagnostics;
     this.diags.set(diagnostics);
+    this.searchHits = [];
+    this.searchIdx = -1;
+    this.searchInput.value = '';
     this.docTitleEl.replaceChildren();
     const b = document.createElement('b');
     b.textContent = String(deck.doc.title ?? 'deck');
@@ -545,9 +641,11 @@ class App {
         sourceLabel = 'PowerPoint 書き出し PNG';
         note = 'ローカル PowerPoint で書き出した静的画像です。Esc で戻る。';
       } else {
-        el = this.placeholder(this.officeOk
-          ? 'プレビュー画像を生成できませんでした（右下の診断を参照）'
-          : 'プレビューを生成できません（PowerPoint 未検出）');
+        el = this.placeholder(this.exporting
+          ? 'ページ画像を生成中です… 少し待ってからもう一度開いてください'
+          : this.officeOk
+            ? 'プレビュー画像を生成できませんでした（右下の診断を参照）'
+            : 'プレビューを生成できません（PowerPoint 未検出）');
         sourceLabel = 'pptx';
         note = '関係図・アウトライン・プレゼン運鏡はそのまま利用できます。';
       }
@@ -596,6 +694,15 @@ class App {
 
   wireKeyboard(): void {
     document.addEventListener('keydown', e => {
+      // 入力欄フォーカス中はグローバルキーを発火させない
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+      if (e.ctrlKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        if (!this.presenter.active) this.searchInput.focus();
+        return;
+      }
+      if (e.key === 'F3') { e.preventDefault(); this.nextSearchHit(e.shiftKey ? -1 : 1); return; }
       if (e.key === 'F5') { e.preventDefault(); if (!this.presenter.active) this.presenter.enter(); return; }
       if (this.presenter.handleKey(e)) { e.preventDefault(); return; }
       // プレビュー表示サイズ（+/−。プレゼン中も有効）
@@ -612,6 +719,7 @@ class App {
       }
       if (e.key === 'Escape') {
         if (this.preview.isOpen) this.preview.close();
+        else if (this.searchHits.length > 0) this.clearSearch();
         else this.clearSelection();
         return;
       }

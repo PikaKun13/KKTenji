@@ -4,7 +4,17 @@ const path = require('node:path');
 const fsp = require('node:fs/promises');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
-const { execFile } = require('node:child_process');
+const { execFile, spawn } = require('node:child_process');
+
+// 関連付け/右クリック/二重起動から渡されるパスを argv から拾う
+function pathFromArgv(argv) {
+  for (const a of argv.slice(1)) {
+    if (a.startsWith('-')) continue;
+    if (/\.(tenji\.json|tenji|json|pptx|md)$/i.test(a)) return a;
+    try { if (fs.statSync(a).isDirectory()) return a; } catch { /* ignore */ }
+  }
+  return null;
+}
 
 const APP_ROOT = path.join(__dirname, '..');
 const resolvePath = (p) => (path.isAbsolute(p) ? p : path.join(APP_ROOT, p));
@@ -19,6 +29,7 @@ function createWindow() {
     height: 900,
     backgroundColor: '#202020',
     title: 'KKTenji',
+    icon: path.join(APP_ROOT, 'build', 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -36,10 +47,13 @@ function createWindow() {
   }
   const mode = process.env.KK_SHOT_MODE;
   let hash = '';
+  const argvPath = pathFromArgv(process.argv);
   if (process.env.KK_OPEN) {
     hash = '#open=' + encodeURIComponent(process.env.KK_OPEN) + (mode ? '&' + mode : '');
   } else if (process.env.KK_SHOT) {
     hash = mode === 'pres' ? '#sample-pres' : mode === 'sel' ? '#sample-sel' : '#sample';
+  } else if (argvPath) {
+    hash = '#open=' + encodeURIComponent(argvPath);
   }
   win.loadFile(path.join(APP_ROOT, 'dist-web', 'index.html'), { hash });
 
@@ -58,7 +72,20 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(createWindow);
+// 単一インスタンス: 2 回目の起動はパスを既存窓へ渡す
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (_e, argv) => {
+    if (!win) return;
+    if (win.isMinimized()) win.restore();
+    win.focus();
+    const p = pathFromArgv(argv);
+    if (p) win.webContents.send('open-path', p);
+  });
+  app.whenReady().then(createWindow);
+}
 app.on('window-all-closed', () => app.quit());
 
 ipcMain.handle('open-file', async () => {
@@ -123,12 +150,25 @@ async function doExportPptx(pptxPath) {
     }
     await fsp.mkdir(outDir, { recursive: true });
     const script = path.join(APP_ROOT, 'scripts', 'export-pptx.ps1');
+    // spawn + 行単位読取で PAGE i/N をレンダラへ増分中継（設計書 §6.9/§9）
     return await new Promise((resolve) => {
-      execFile('powershell', [
+      const ps = spawn('powershell', [
         '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script,
         '-Pptx', abs, '-OutDir', outDir,
-      ], { timeout: 300000 }, async (err, stdout) => {
-        const out = String(stdout);
+      ]);
+      let out = '';
+      const timer = setTimeout(() => { try { ps.kill(); } catch { /* ignore */ } }, 300000);
+      ps.stdout.on('data', (d) => {
+        const s = String(d);
+        out += s;
+        const m = s.match(/PAGE (\d+)\/(\d+)/);
+        if (m && win && !win.isDestroyed()) {
+          win.webContents.send('export-progress', { i: Number(m[1]), n: Number(m[2]) });
+        }
+      });
+      ps.on('error', (e) => { clearTimeout(timer); resolve({ error: e.message }); });
+      ps.on('close', async () => {
+        clearTimeout(timer);
         const done = out.match(/DONE (\d+)/);
         if (done) {
           const pages = Number(done[1]);
@@ -136,7 +176,7 @@ async function doExportPptx(pptxPath) {
           resolve({ pages, dir: outDir });
         } else {
           const em = out.match(/ERROR (.+)/);
-          resolve({ error: em ? em[1].trim() : (err ? err.message : 'UNKNOWN') });
+          resolve({ error: em ? em[1].trim() : 'UNKNOWN' });
         }
       });
     });

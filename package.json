@@ -23,14 +23,25 @@
       "electron/**",
       "scripts/**",
       "sample/**",
+      "build/icon.ico",
       "package.json"
     ],
-    "win": { "target": "nsis" },
+    "win": { "target": "nsis", "icon": "build/icon.ico" },
+    "fileAssociations": [
+      {
+        "ext": "tenji",
+        "name": "KKTenji deck",
+        "description": "KKTenji 関係図 deck",
+        "icon": "build/icon.ico",
+        "role": "Viewer"
+      }
+    ],
     "nsis": {
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "KKTenji-Setup-${version}.${ext}"
+      "artifactName": "KKTenji-Setup-${version}.${ext}",
+      "include": "build/installer.nsh"
     }
   },
   "dependencies": {

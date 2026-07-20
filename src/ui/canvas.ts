@@ -19,6 +19,7 @@ export interface CanvasView {
   setSelection(id: string | null): void;
   setHover(id: string | null): void;
   setFlowGlow(id: string | null): void;
+  setSearchHits(hits: Set<string> | null): void;
   addPulse(id: string): void;
   removePulse(): void;
   applyCamera(cam: CamState): void;
@@ -262,9 +263,16 @@ export function renderCanvas(
     }
   }
 
+  function setSearchHits(hits: Set<string> | null): void {
+    world.classList.toggle('searching', hits !== null);
+    for (const [nid, g] of nodeEls) {
+      g.classList.toggle('hit', !!hits?.has(nid));
+    }
+  }
+
   return {
     svg, world,
-    setSelection, setHover, setFlowGlow, addPulse, removePulse,
+    setSelection, setHover, setFlowGlow, setSearchHits, addPulse, removePulse,
     applyCamera(cam: CamState) {
       world.setAttribute('transform', `translate(${cam.x} ${cam.y}) scale(${cam.s})`);
     },

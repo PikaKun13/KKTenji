@@ -9,4 +9,6 @@ contextBridge.exposeInMainWorld('kk', {
   exportPptx: (p) => ipcRenderer.invoke('export-pptx', p),
   getCacheDir: () => ipcRenderer.invoke('cache-dir'),
   hasOffice: () => ipcRenderer.invoke('has-office'),
+  onExportProgress: (cb) => ipcRenderer.on('export-progress', (_e, p) => cb(p)),
+  onOpenPath: (cb) => ipcRenderer.on('open-path', (_e, p) => cb(p)),
 });

@@ -8,6 +8,8 @@ export interface OutlineHandlers {
 
 export interface OutlineView {
   setSelection(id: string | null): void;
+  /** 検索: hits と祖先だけ表示（null = 全表示） */
+  filter(visible: Set<string> | null): void;
   destroy(): void;
 }
 
@@ -75,6 +77,24 @@ export function renderOutline(host: HTMLElement, deck: ParsedDeck, handlers: Out
         const on = nid === id;
         el.classList.toggle('sel', on);
         if (on) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    },
+    filter(visible: Set<string> | null) {
+      if (visible === null) {
+        for (const el of rows.values()) el.style.display = '';
+        return;
+      }
+      // hits + 祖先チェーンを可視に
+      const show = new Set<string>();
+      for (const id of visible) {
+        let n = deck.nodes.get(id);
+        while (n) {
+          show.add(n.id);
+          n = n.parent ? deck.nodes.get(n.parent) : undefined;
+        }
+      }
+      for (const [nid, el] of rows) {
+        el.style.display = show.has(nid) ? '' : 'none';
       }
     },
     destroy() { wrap.remove(); },
