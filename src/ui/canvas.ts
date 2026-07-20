@@ -1,6 +1,7 @@
 // SVG キャンバス描画（モックアップの SVG 構築部を deck/layout 駆動に一般化）
 import type { ParsedDeck, TenjiLink } from '../core/types';
 import type { LayoutResult, NodeBox } from '../core/layout';
+import { chooseControl } from '../core/edgeRoute';
 import type { CamState } from './camera';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -48,15 +49,6 @@ function el<K extends keyof SVGElementTagNameMap>(
 
 function truncate(s: string, max: number): string {
   return s.length > max ? s.slice(0, max - 1) + '…' : s;
-}
-
-/** ノード枠上の接続点（中心→target 方向で枠+7px を切る） */
-function edgePoint(b: NodeBox, tx: number, ty: number): { x: number; y: number } {
-  const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
-  const dx = tx - cx, dy = ty - cy;
-  const hw = b.w / 2 + 7, hh = b.h / 2 + 7;
-  const s = 1 / Math.max(Math.abs(dx) / hw, Math.abs(dy) / hh, 1e-6);
-  return { x: cx + dx * Math.min(s, 1), y: cy + dy * Math.min(s, 1) };
 }
 
 export function renderCanvas(
@@ -128,15 +120,16 @@ export function renderCanvas(
     const dx = cb2.x - ca.x, dy = cb2.y - ca.y;
     const dist = Math.hypot(dx, dy) || 1;
     const nx = -dy / dist, ny = dx / dist;
-    // 弧はレイアウト中心から外側へ張る（一般則）。同一ペア複数本は扇状にずらす
+    // 同一ペア複数本は扇状にずらす。経路はノード回避採点で選ぶ（core/edgeRoute）
     const pairKey = [link.from, link.to].sort().join('|');
     const idx = pairCount.get(pairKey) ?? 0;
     pairCount.set(pairKey, idx + 1);
-    const outward = (nx * (mx - bc.x) + ny * (my - bc.y)) >= 0 ? 1 : -1;
-    const k = (0.28 + idx * 0.14) * outward;
-    const c = { x: mx + nx * dist * k, y: my + ny * dist * k };
-    const p1 = edgePoint(ba, c.x, c.y);
-    const p2 = edgePoint(bb, c.x, c.y);
+    const outward: 1 | -1 = (nx * (mx - bc.x) + ny * (my - bc.y)) >= 0 ? 1 : -1;
+    const obstacles = [...layout.boxes.entries()]
+      .filter(([nid]) => nid !== link.from && nid !== link.to)
+      .map(([, b]) => b);
+    const route = chooseControl(ba, bb, obstacles, outward, idx);
+    const { p1, p2, c } = route;
     const d = `M${p1.x},${p1.y} Q${c.x},${c.y} ${p2.x},${p2.y}`;
     const type = LINK_TYPES.includes(link.type) ? link.type : 'unknown';
     const casing = el('path', { d, class: 'x-casing' }, gX);
