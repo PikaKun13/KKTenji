@@ -76,7 +76,11 @@ class App {
     this.preview = new Preview(this.canvasWrap);
     this.preview.onClosed = () => { /* 選択は保持 */ };
     this.diags = renderDiagnostics(this.appEl, id => this.openNode(id));
-    this.help = createHelp(this.appEl);
+    this.help = createHelp(this.appEl, {
+      version: this.shell.appVersion,
+      cacheStats: this.shell.cacheStats,
+      clearCache: this.shell.clearCache,
+    });
     this.welcome = renderWelcome(this.canvasWrap, {
       onOpenFile: () => this.openFileFlow(),
       onOpenFolder: () => this.openFolderFlow(),
@@ -86,6 +90,12 @@ class App {
       onOpenRecent: p => { void this.openByPath(p, { fromRecent: true }); },
     });
     void this.refreshRecent();
+    void this.shell.appVersion?.().then(v => this.welcome.setVersion(v));
+    // レンダラ側の未捕捉例外を main の障害ログへ（console-message 経由で拾われる）
+    window.addEventListener('error', e =>
+      console.error(`window-error: ${e.message} @${e.filename}:${e.lineno}`));
+    window.addEventListener('unhandledrejection', e =>
+      console.error(`unhandled-rejection: ${String(e.reason)}`));
     this.presenter = new Presenter({
       appEl: this.appEl,
       hudHost: this.canvasWrap,
@@ -143,9 +153,10 @@ class App {
     });
     // 右クリック「KKTenji で開く」/ 関連付け / 二重起動からのパス
     this.shell.onOpenPath?.(p => { void this.openByPath(p); });
-    // 検証用: #help でヘルプ浮層を開く
-    if (location.hash === '#help') {
-      setTimeout(() => this.help.open('keys'), 300);
+    // 検証用: #help / #help-sys でヘルプ浮層を開く
+    if (location.hash.startsWith('#help')) {
+      const sec = location.hash === '#help-sys' ? 'sys' : 'keys';
+      setTimeout(() => this.help.open(sec), 300);
     }
     // 検証用: #sample で起動されたら sample deck を自動で開く（#sample-pres はプレゼンまで進む）
     if (location.hash.startsWith('#sample')) {
@@ -560,6 +571,10 @@ class App {
   private exportErrText(err?: string): string {
     if (!err || err === 'UNKNOWN') {
       return '原因不明（PowerPoint が確認ダイアログ等で停止していないかご確認ください）';
+    }
+    if (err === 'TIMEOUT') {
+      return '5 分以内に完了せず打ち切りました（PowerPoint がダイアログ待ちで停止している可能性。' +
+        'PowerPoint を一度閉じて再試行してください）';
     }
     if (err === 'NO_OFFICE') return 'PowerPoint が見つかりません';
     return err;

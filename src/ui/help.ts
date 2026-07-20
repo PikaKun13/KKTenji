@@ -19,12 +19,19 @@ const KEYS_PRESENT: Array<[string, string]> = [
 ];
 
 export interface HelpView {
-  open(section?: 'keys' | 'guide'): void;
+  open(section?: 'keys' | 'guide' | 'sys'): void;
   close(): void;
   readonly isOpen: boolean;
 }
 
-export function createHelp(host: HTMLElement): HelpView {
+/** バージョン情報・キャッシュ運用の取得口（browser dev では未提供） */
+export interface HelpSystem {
+  version?(): Promise<string>;
+  cacheStats?(): Promise<{ bytes: number; decks: number }>;
+  clearCache?(): Promise<void>;
+}
+
+export function createHelp(host: HTMLElement, sys: HelpSystem = {}): HelpView {
   const ov = document.createElement('div');
   ov.className = 'helpov hidden';
   const card = document.createElement('div');
@@ -98,12 +105,56 @@ export function createHelp(host: HTMLElement): HelpView {
   guide.append(p1, copy, p2);
   card.appendChild(guide);
 
+  // バージョンとキャッシュ（現地障害の切り分け・容量の見える化）
+  const sysAnchor = h2('バージョン情報');
+  card.appendChild(sysAnchor);
+  const sysBox = document.createElement('div');
+  sysBox.className = 'guide';
+  const verLine = document.createElement('p');
+  verLine.textContent = 'KKTenji';
+  const cacheLine = document.createElement('p');
+  cacheLine.textContent = 'ページ画像キャッシュ: —';
+  const clearBtn = document.createElement('button');
+  clearBtn.className = 'wbtn';
+  clearBtn.textContent = 'キャッシュをクリア';
+  const logNote = document.createElement('p');
+  logNote.textContent =
+    'キャッシュは自動で再生成される派生物なので、いつ消しても安全です。' +
+    '不具合報告の際は %LOCALAPPDATA%\\KKTenji\\logs\\error.log を添えてください。';
+  sysBox.append(verLine, cacheLine, clearBtn, logNote);
+  card.appendChild(sysBox);
+
+  const fmtMB = (b: number) => (b / (1024 * 1024)).toFixed(1) + ' MB';
+  const refreshSys = async () => {
+    if (sys.version) verLine.textContent = `KKTenji v${await sys.version().catch(() => '?')}`;
+    if (sys.cacheStats) {
+      const s = await sys.cacheStats().catch(() => null);
+      cacheLine.textContent = s
+        ? `ページ画像キャッシュ: ${fmtMB(s.bytes)}（${s.decks} deck 分）`
+        : 'ページ画像キャッシュ: 取得できません';
+    }
+    clearBtn.style.display = sys.clearCache ? '' : 'none';
+  };
+  clearBtn.addEventListener('click', async () => {
+    clearBtn.disabled = true;
+    try {
+      await sys.clearCache?.();
+      clearBtn.textContent = 'クリアしました ✓';
+    } finally {
+      await refreshSys();
+      clearBtn.disabled = false;
+      setTimeout(() => { clearBtn.textContent = 'キャッシュをクリア'; }, 2200);
+    }
+  });
+
   host.appendChild(ov);
 
   const api = {
-    open(section: 'keys' | 'guide' = 'keys') {
+    open(section: 'keys' | 'guide' | 'sys' = 'keys') {
       ov.classList.remove('hidden');
+      void refreshSys();
       if (section === 'guide') guideAnchor.scrollIntoView({ block: 'start' });
+      else if (section === 'sys') sysAnchor.scrollIntoView({ block: 'start' });
       else card.scrollTop = 0;
     },
     close() { ov.classList.add('hidden'); },

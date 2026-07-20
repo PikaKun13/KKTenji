@@ -50,13 +50,28 @@
 - 対抗レビュー（3 視点 → 逐条検証、agent 13 体）: 確認 5 件（pill 残留 medium 等）全修正、
   誤報 5 件棄却。検証: スクリーンショット 4 枚（sample/実 deck/エラー画面/ヘルプ）
 
+## 2026-07-20 昼②: 運用品質バッチ（Vitest 53 green・インストーラ 11:55 再ビルド）
+
+- **障害ログ**: `%LOCALAPPDATA%/KKTenji/logs/error.log`（main の uncaught/unhandled、
+  renderer の error 級 console、render-process-gone。512KB 超で後半のみ残す）
+- **キャッシュ治理**: LRU 掃除（合計 1.5GB 超を古い順削除。起動 8 秒後 + export 完了後、
+  manifest ヒット時 utimes で使用印、進行中 outDir は対象外）/ ヘルプ「バージョン情報」に
+  使用量表示 + クリア按钮（`cache-stats` / `clear-cache` IPC）
+- **バージョン表示**: Welcome 副題と ヘルプ に v 表示（`app-version` IPC）。`help.open('sys')` 深リンク
+- **export 加固**: 自分が起動した PowerPoint のみ AutomationSecurity=3 / DisplayAlerts=1 で
+  モーダル抑止 / タイムアウトは TIMEOUT として区別し利用者向け文言化 / 失敗を障害ログへ
+- **uninstall 清掃**: `$LOCALAPPDATA\KKTenji` と `$APPDATA\KKTenji` を削除。
+  **`${ifNot} ${isUpdated}` ガード必須**（無いと更新のたびに recent/キャッシュ/ログが消える。
+  対抗レビューで検出済み・修正済み）
+- 対抗レビュー（2 視点 → 逐条検証、agent 13 体）: 確認 3 件（更新時データ消去 high /
+  clear-cache と進行中 export の競合 low）全修正、誤報 8 件棄却
+
 ## 次の一手（優先順）
 
-1. 繰り越し（P2 運用系）: キャッシュ LRU 上限 + 手動クリア UI + mtime 照合・更新バッジ /
-   アンインストール時のキャッシュ掃除 / クラッシュログ収集 + About/バージョン表示 /
-   export タイムアウト時の孤児 POWERPNT 回収と原因明示 / 起動時の新版チェック（軽量）
-2. 機能繰り越し: モーション速度スライダー + 設定画面 / 演讲者ダブルスクリーン /
-   関係図の PNG/PDF 書き出し / アウトラインの リンク一覧・フロー 視図タブ
+1. 機能繰り越し: モーション速度スライダー + 設定画面 / 演讲者ダブルスクリーン /
+   関係図の PNG/PDF 書き出し / アウトラインの リンク一覧・フロー 視図タブ /
+   キャッシュ mtime 快速照合・「内容が変わった」バッジ（contentHash 運用が前提）
+2. 起動時の新版チェック（GitHub Releases を作ってから。現状は手渡し配布のため保留）
 3. コード署名（ユーザー判断: 当面買わない = SmartScreen は README の手順で回避）
 4. Tauri 移行（Rust 導入後。インストーラ 95MB → 約10MB）
 

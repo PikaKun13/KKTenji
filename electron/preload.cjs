@@ -23,4 +23,7 @@ contextBridge.exposeInMainWorld('kk', {
   listRecent: () => ipcRenderer.invoke('recent-list'),
   addRecent: (p, title) => ipcRenderer.invoke('recent-add', p, title),
   removeRecent: (p) => ipcRenderer.invoke('recent-remove', p),
+  appVersion: () => ipcRenderer.invoke('app-version'),
+  cacheStats: () => ipcRenderer.invoke('cache-stats'),
+  clearCache: () => ipcRenderer.invoke('clear-cache'),
 });

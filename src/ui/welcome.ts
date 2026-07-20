@@ -18,6 +18,7 @@ export interface WelcomeView {
   /** 起動失敗などの要点を Welcome 上に大きく表示する（null で消す） */
   setNotice(text: string | null): void;
   setRecent(items: RecentEntry[]): void;
+  setVersion(v: string): void;
 }
 
 export function renderWelcome(host: HTMLElement, handlers: WelcomeHandlers): WelcomeView {
@@ -78,6 +79,9 @@ export function renderWelcome(host: HTMLElement, handlers: WelcomeHandlers): Wel
         notice.textContent = text;
         notice.classList.remove('hidden');
       }
+    },
+    setVersion(v: string) {
+      sub.textContent = `deck を思維関係図として展示するツール ・ v${v}`;
     },
     setRecent(items: RecentEntry[]) {
       recent.replaceChildren();

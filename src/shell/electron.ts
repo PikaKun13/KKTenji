@@ -16,6 +16,9 @@ interface KkBridge {
   listRecent(): Promise<RecentEntry[]>;
   addRecent(path: string, title: string): Promise<void>;
   removeRecent(path: string): Promise<void>;
+  appVersion(): Promise<string>;
+  cacheStats(): Promise<{ bytes: number; decks: number }>;
+  clearCache(): Promise<void>;
 }
 
 export function electronShell(): ShellApi {
@@ -43,5 +46,8 @@ export function electronShell(): ShellApi {
     listRecent: () => kk.listRecent(),
     addRecent: (p, t) => kk.addRecent(p, t),
     removeRecent: p => kk.removeRecent(p),
+    appVersion: () => kk.appVersion(),
+    cacheStats: () => kk.cacheStats(),
+    clearCache: () => kk.clearCache(),
   };
 }

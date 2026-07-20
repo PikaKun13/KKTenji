@@ -28,4 +28,11 @@
   ; 旧版が登録した .json 分も掃除する
   !insertmacro removeOpenWith "SystemFileAssociations\.json"
   DeleteRegKey HKCU "Software\Classes\Directory\shell\KKTenji"
+  ; 派生物（ページ画像キャッシュ・ログ）と設定を残さない。
+  ; ただし更新インストール時（isUpdated）は旧アンインストーラ経由でもここが走るため、
+  ; 本当のアンインストール時のみ削除する（electron-builder 自身の appdata 削除と同じガード）
+  ${ifNot} ${isUpdated}
+    RMDir /r "$LOCALAPPDATA\KKTenji"
+    RMDir /r "$APPDATA\KKTenji"
+  ${endIf}
 !macroend

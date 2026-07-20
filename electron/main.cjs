@@ -54,6 +54,55 @@ function guardPath(p) {
   throw new Error('PATH_DENIED');
 }
 
+// ── 障害ログ（%LOCALAPPDATA%/KKTenji/logs/error.log。肥大時は後半のみ残す）──
+const logDir = () => path.join(process.env.LOCALAPPDATA || app.getPath('userData'), 'KKTenji', 'logs');
+function logError(tag, msg) {
+  try {
+    fs.mkdirSync(logDir(), { recursive: true });
+    const f = path.join(logDir(), 'error.log');
+    const line = `[${new Date().toISOString()}] ${tag}: ${String(msg).slice(0, 4000)}\n`;
+    let prev = '';
+    try { prev = fs.readFileSync(f, 'utf8'); } catch { /* ignore */ }
+    if (prev.length > 512 * 1024) prev = prev.slice(prev.length - 256 * 1024);
+    fs.writeFileSync(f, prev + line);
+  } catch { /* ログ失敗で本体は落とさない */ }
+}
+process.on('uncaughtException', (e) => logError('main-uncaught', (e && e.stack) || e));
+process.on('unhandledRejection', (e) => logError('main-unhandled', (e && e.stack) || e));
+
+// ── キャッシュ統計と LRU 掃除（設計書 §8。キャッシュは派生物 = いつ消しても安全）──
+const CACHE_LIMIT_BYTES = 1.5 * 1024 * 1024 * 1024;
+const exportingDirs = new Set(); // 書き出し進行中の outDir は掃除・クリアの対象外
+async function scanCache() {
+  const root = cacheRoot();
+  const entries = [];
+  for (const name of await fsp.readdir(root).catch(() => [])) {
+    const p = path.join(root, name);
+    if (exportingDirs.has(p)) continue;
+    const st = await fsp.stat(p).catch(() => null);
+    if (!st || !st.isDirectory()) continue;
+    let size = 0;
+    for (const fn of await fsp.readdir(p).catch(() => [])) {
+      const fst = await fsp.stat(path.join(p, fn)).catch(() => null);
+      if (fst && fst.isFile()) size += fst.size;
+    }
+    entries.push({ p, mtimeMs: st.mtimeMs, size });
+  }
+  return entries;
+}
+async function sweepCache() {
+  try {
+    const entries = await scanCache();
+    let total = entries.reduce((a, e) => a + e.size, 0);
+    entries.sort((a, b) => a.mtimeMs - b.mtimeMs); // 古い順に削る
+    for (const e of entries) {
+      if (total <= CACHE_LIMIT_BYTES) break;
+      await fsp.rm(e.p, { recursive: true, force: true });
+      total -= e.size;
+    }
+  } catch (e) { logError('cache-sweep', e.message); }
+}
+
 // ── 最近開いた deck（userData/recent.json。パスは白名单通過済みのもののみ）──
 const recentFile = () => path.join(app.getPath('userData'), 'recent.json');
 async function loadRecent() {
@@ -85,12 +134,16 @@ function createWindow() {
   // drop されたファイルへのナビゲーション等を防ぐ（縦深防御）
   win.webContents.on('will-navigate', (e) => e.preventDefault());
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  if (process.env.KK_DEBUG) {
-    win.webContents.on('console-message', (_e, _lv, msg) => {
+  // レンダラの error レベルは常に障害ログへ（現地障害の切り分け用）
+  win.webContents.on('console-message', (_e, lv, msg) => {
+    if (lv >= 3) logError('renderer', msg);
+    if (process.env.KK_DEBUG) {
       require('node:fs').appendFileSync(
         path.join(cacheRoot(), 'console-debug.txt'), msg + '\n');
-    });
-  }
+    }
+  });
+  win.webContents.on('render-process-gone', (_e, details) =>
+    logError('renderer-gone', JSON.stringify(details)));
   const mode = process.env.KK_SHOT_MODE;
   let hash = '';
   const argvPath = pathFromArgv(process.argv);
@@ -100,7 +153,7 @@ function createWindow() {
     hash = '#open=' + encodeURIComponent(process.env.KK_OPEN) + (mode ? '&' + mode : '');
   } else if (process.env.KK_SHOT) {
     hash = mode === 'pres' ? '#sample-pres' : mode === 'sel' ? '#sample-sel'
-      : mode === 'help' ? '#help' : '#sample';
+      : mode === 'help' ? '#help' : mode === 'help-sys' ? '#help-sys' : '#sample';
   } else if (argvPath) {
     hash = '#open=' + encodeURIComponent(argvPath);
   }
@@ -135,7 +188,10 @@ if (!gotLock) {
     const p = pathFromArgv(argv);
     if (p) { grantPath(p); win.webContents.send('open-path', p); }
   });
-  app.whenReady().then(createWindow);
+  app.whenReady().then(() => {
+    createWindow();
+    setTimeout(() => { void sweepCache(); }, 8000); // 起動を阻害しないよう遅延して LRU 掃除
+  });
 }
 app.on('window-all-closed', () => app.quit());
 
@@ -180,6 +236,17 @@ ipcMain.handle('recent-remove', async (_e, p) => {
   const key = String(p).toLowerCase();
   await saveRecent((await loadRecent()).filter(x => x.path.toLowerCase() !== key));
 });
+
+ipcMain.handle('app-version', () => app.getVersion());
+ipcMain.handle('cache-stats', async () => {
+  const entries = await scanCache();
+  return { bytes: entries.reduce((a, e) => a + e.size, 0), decks: entries.length };
+});
+ipcMain.handle('clear-cache', async () => {
+  for (const e of await scanCache()) {
+    await fsp.rm(e.p, { recursive: true, force: true }).catch(() => { /* ignore */ });
+  }
+});
 ipcMain.handle('cache-dir', async () => {
   const d = cacheRoot();
   await fsp.mkdir(d, { recursive: true });
@@ -220,10 +287,13 @@ async function doExportPptx(pptxPath) {
       // BOM 付きで書かれた manifest も許容する
       const raw = (await fsp.readFile(manifestPath, 'utf8')).replace(/^﻿/, '');
       const m = JSON.parse(raw);
+      const now = new Date();
+      await fsp.utimes(outDir, now, now).catch(() => {}); // LRU 用に「使った」印
       return { pages: m.pages, dir: outDir };
     }
     await fsp.mkdir(outDir, { recursive: true });
     const script = path.join(APP_ROOT, 'scripts', 'export-pptx.ps1');
+    exportingDirs.add(outDir);
     // spawn + 行単位読取で PAGE i/N をレンダラへ増分中継（設計書 §6.9/§9）
     return await new Promise((resolve) => {
       const ps = spawn(POWERSHELL, [
@@ -231,7 +301,12 @@ async function doExportPptx(pptxPath) {
         '-Pptx', abs, '-OutDir', outDir,
       ]);
       let out = '';
-      const timer = setTimeout(() => { try { ps.kill(); } catch { /* ignore */ } }, 300000);
+      let timedOut = false;
+      const timer = setTimeout(() => {
+        timedOut = true;
+        logError('export-timeout', pptxPath);
+        try { ps.kill(); } catch { /* ignore */ }
+      }, 300000);
       ps.stdout.on('data', (d) => {
         const s = String(d);
         out += s;
@@ -240,17 +315,25 @@ async function doExportPptx(pptxPath) {
           win.webContents.send('export-progress', { i: Number(m[1]), n: Number(m[2]) });
         }
       });
-      ps.on('error', (e) => { clearTimeout(timer); resolve({ error: e.message }); });
+      ps.on('error', (e) => {
+        clearTimeout(timer);
+        exportingDirs.delete(outDir);
+        resolve({ error: e.message });
+      });
       ps.on('close', async () => {
         clearTimeout(timer);
+        exportingDirs.delete(outDir);
         const done = out.match(/DONE (\d+)/);
         if (done) {
           const pages = Number(done[1]);
           await fsp.writeFile(manifestPath, JSON.stringify({ schema: 1, pages, source: hash8 }));
+          setTimeout(() => { void sweepCache(); }, 1000);
           resolve({ pages, dir: outDir });
         } else {
           const em = out.match(/ERROR (.+)/);
-          resolve({ error: em ? em[1].trim() : 'UNKNOWN' });
+          const error = timedOut ? 'TIMEOUT' : em ? em[1].trim() : 'UNKNOWN';
+          if (error !== 'NO_OFFICE') logError('export-failed', `${error} (${pptxPath})`);
+          resolve({ error });
         }
       });
     });

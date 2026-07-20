@@ -23,6 +23,10 @@ export interface ShellApi {
   listRecent?(): Promise<RecentEntry[]>;
   addRecent?(path: string, title: string): Promise<void>;
   removeRecent?(path: string): Promise<void>;
+  /** アプリのバージョンとキャッシュ運用（electron のみ） */
+  appVersion?(): Promise<string>;
+  cacheStats?(): Promise<{ bytes: number; decks: number }>;
+  clearCache?(): Promise<void>;
 }
 
 export interface RecentEntry { path: string; title: string; ts: number; }

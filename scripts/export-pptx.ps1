@@ -24,6 +24,13 @@ try {
 
 $pres = $null
 try {
+  # Suppress modal prompts that would hang a headless export:
+  # AutomationSecurity 3 = msoAutomationSecurityForceDisable (no macro prompt),
+  # DisplayAlerts 1 = ppAlertsNone. Only for our own instance.
+  if ($ownsApp) {
+    try { $app.AutomationSecurity = 3 } catch {}
+    try { $app.DisplayAlerts = 1 } catch {}
+  }
   # Open(FileName, ReadOnly, Untitled, WithWindow)
   $pres = $app.Presentations.Open($Pptx, $true, $true, $false)
   $n = $pres.Slides.Count
